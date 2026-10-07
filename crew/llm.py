@@ -15,6 +15,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = ROOT / ".env"
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+# กันรอเซิร์ฟเวอร์นาน: แต่ละคำขอรอได้ไม่เกิน 60 วินาที และลองซ้ำอีกไม่เกิน 2 ครั้ง
+TIMEOUT_SECONDS = 60
+MAX_RETRIES = 2
 
 
 class SetupError(RuntimeError):
@@ -95,9 +98,20 @@ def gemini_llm():
         )
     model = model.removeprefix("models/").removeprefix("gemini/")
     from crewai import LLM
+    from google.genai import types
 
     # ส่ง api_key ตรง ๆ: crewai จะใช้ GOOGLE_API_KEY ของเครื่องก่อน ถ้าไม่ส่ง
-    return LLM(model=f"gemini/{model}", api_key=key, temperature=0.4)
+    # ตัวเชื่อม Gemini ของ crewai ไม่รับ timeout/max_retries ตรง ๆ → ส่งผ่าน client_params
+    # ให้ google-genai แทน (timeout หน่วยเป็นมิลลิวินาที, attempts นับครั้งแรกด้วย)
+    return LLM(
+        model=f"gemini/{model}",
+        api_key=key,
+        temperature=0.4,
+        client_params={"http_options": types.HttpOptions(
+            timeout=TIMEOUT_SECONDS * 1000,
+            retry_options=types.HttpRetryOptions(attempts=MAX_RETRIES + 1),
+        )},
+    )
 
 
 def groq_configured() -> bool:
@@ -119,6 +133,8 @@ def groq_llm():
         base_url=GROQ_BASE_URL,
         api_key=key,
         temperature=0.4,
+        timeout=TIMEOUT_SECONDS,
+        max_retries=MAX_RETRIES,
     )
 
 
