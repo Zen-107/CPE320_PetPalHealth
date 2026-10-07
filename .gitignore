@@ -1,0 +1,48 @@
+# ---- ความลับ (ห้ามขึ้น GitHub) ----
+.env
+.env.*
+!.env.example
+*.env.txt
+
+# ---- Python ----
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- IDE / OS ----
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- Flutter / Dart (app/) ----
+app/build/
+app/.dart_tool/
+app/.flutter-plugins*
+app/.pub-cache/
+app/.pub/
+app/coverage/
+app/*.iml
+app/.idea/
+app/android/.gradle/
+app/android/.kotlin/
+app/android/local.properties
+app/android/key.properties
+app/android/app/debug/
+app/android/app/profile/
+app/android/app/release/
+app/android/**/GeneratedPluginRegistrant.java
+*.iml
+.dart_tool/
+build/
+
+# ---- Claude Code (ค่าส่วนตัว) ----
+.claude/settings.local.json

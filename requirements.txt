@@ -1,0 +1,23 @@
+# PetPal Health — แพ็กเกจฝั่ง CrewAI (A = product, B = design, C = review)
+#
+# Python ที่รองรับ: 3.10–3.13 (crewai 1.15.x ประกาศไว้ >=3.10,<3.14)
+#   → ทีมใช้ Python 3.12 (ทดสอบติดตั้งจริงด้วย pip และ uv บน Windows 11 + Python 3.12.13)
+#   → Python 3.14 ติดตั้งไม่ได้ (crewai ยังไม่รองรับ)
+#
+# ติดตั้ง (ต้อง activate .venv ก่อน):
+#   python -m pip install -r requirements.txt
+#   uv pip install -r requirements.txt        (ถ้าสร้าง venv ด้วย uv)
+
+# CrewAI + ตัวเชื่อม Gemini แบบ native (extra ชื่อ "google-genai")
+crewai[google-genai]==1.15.23
+
+# SDK ของ Gemini — crewai[google-genai] 1.15.23 ล็อกไว้ที่ ~=1.65.0
+# จึงใช้ google-genai 2.x ไม่ได้ ห้ามอัปเกรดเองจนกว่าจะอัปเกรด crewai
+google-genai==1.65.0
+
+# อ่านไฟล์ .env
+python-dotenv==1.2.4
+
+# Groq (ตัวสำรอง): ไม่ต้องลงอะไรเพิ่ม
+#   crew/llm.py เรียก Groq ผ่าน OpenAI-compatible endpoint ด้วยแพ็กเกจ openai ที่ crewai ติดมาให้แล้ว
+#   (ไม่ใช้ litellm เพราะหนักและไม่จำเป็น)

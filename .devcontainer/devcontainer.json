@@ -1,0 +1,27 @@
+{
+  // GitHub Codespaces / Dev Containers — ทางหนีไฟเมื่อเครื่องตัวเองติดตั้งไม่ผ่าน
+  // เปิดแล้วจะได้ Python 3.12 + .venv ที่ติดตั้ง requirements.txt ให้อัตโนมัติ
+  // ใส่ key ผ่าน Codespaces secrets ชื่อ GEMINI_API_KEY / GROQ_API_KEY (ดู docs/SETUP_CREWAI.md ข้อ 13)
+  "name": "PetPal Health (CrewAI)",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+  "postCreateCommand": "python -m venv .venv && .venv/bin/python -m pip install --upgrade pip && .venv/bin/python -m pip install -r requirements.txt",
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python"],
+      "settings": {
+        "python.defaultInterpreterPath": "${containerWorkspaceFolder}/.venv/bin/python",
+        "python.terminal.activateEnvironment": true
+      }
+    }
+  },
+  "secrets": {
+    "GEMINI_API_KEY": {
+      "description": "Gemini API key จาก https://aistudio.google.com (ขึ้นต้น AIza)",
+      "documentationUrl": "https://aistudio.google.com/apikey"
+    },
+    "GROQ_API_KEY": {
+      "description": "(ไม่บังคับ) Groq API key จาก https://console.groq.com/keys (ขึ้นต้น gsk_)",
+      "documentationUrl": "https://console.groq.com/keys"
+    }
+  }
+}
