@@ -31,7 +31,14 @@ class WaterController extends ChangeNotifier {
 
   /// โหลดข้อมูลจากเครื่อง แล้วตรวจรีเซ็ต 05:00 น. ทันที (AC-5, EC-2)
   Future<void> load() async {
-    final loaded = await _repository.load();
+    WaterState loaded;
+    try {
+      loaded = await _repository.load();
+    } catch (_) {
+      // DECIDED: Zen-107 2026-10-08 — ข้อมูลในเครื่องเสียหรือเก็บผิดชนิด
+      // ให้เริ่มใหม่เป็นค่าว่าง แอปห้าม crash (game-rules.md §4)
+      loaded = WaterState.initial;
+    }
     _state = loaded;
     _isLoaded = true;
     await refreshDailyReset();
@@ -67,6 +74,10 @@ class WaterController extends ChangeNotifier {
   }
 
   /// รายงานของเดือนปัจจุบัน (AC-6)
-  MonthlyWaterReport monthlyReport() =>
-      WaterLogic.monthlyReport(_state.history, _clock());
+  // DECIDED: Zen-107 2026-10-08 — นาฬิกาย้อนกลับนับเป็นวันเดียวกับการบันทึกล่าสุด
+  // (game-rules.md §4) จึงเลือกเดือนจาก effectiveNow ไม่ใช่เวลาที่ถอยหลัง
+  MonthlyWaterReport monthlyReport() => WaterLogic.monthlyReport(
+        _state.history,
+        WaterLogic.effectiveNow(_state.lastLoggedAt, _clock()),
+      );
 }

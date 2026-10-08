@@ -58,6 +58,11 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # ภาพสัตว์เลี้ยง PNG ตามชื่อใน docs/water/game-rules.md §2 (ถ้ามี) — ไม่มีไฟล์ก็ใช้ภาพวาด
+  # โฟลเดอร์ต้องมีอยู่จริง (assets/images/.gitkeep) ไม่งั้น build พัง
+  assets:
+    - assets/images/
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

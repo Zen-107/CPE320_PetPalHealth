@@ -7,6 +7,7 @@ import '../water_logic.dart';
 import '../water_models.dart';
 import '../water_rules.dart';
 import '../widgets/asset_image_or_icon.dart';
+import '../widgets/pet_avatar.dart';
 import 'monthly_report_screen.dart';
 
 /// S-1 หน้าจอหลัก (Home / Water Tracker) — ux-flow.md §2
@@ -65,11 +66,16 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
     if (outcome == LogWaterOutcome.blockedBySpam) {
       final messenger = ScaffoldMessenger.of(context);
       messenger.hideCurrentSnackBar();
+      // DECIDED: Zen-107 2026-10-08 — Toast หายเองใน 2 วินาที นับตั้งแต่แสดงเต็มจอ
+      // ไม่นับเวลา animation (ux-flow.md §6): ScaffoldMessenger เริ่มจับเวลา
+      // `duration` เมื่อ animation เข้าเสร็จ (แสดงเต็มจอ) และ persist: false
+      // บังคับให้หายเองเสมอ
       messenger.showSnackBar(
         const SnackBar(
           key: Key('water_anti_spam_toast'),
           content: Text(WaterRules.antiSpamMessage),
           duration: Duration(seconds: WaterRules.antiSpamToastSeconds),
+          persist: false,
         ),
       );
     }
@@ -126,12 +132,11 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
             const Spacer(),
             // Pet Avatar / Status (AC-2)
             Center(
-              child: AssetImageOrIcon(
+              // วาดด้วย CustomPainter หรือใช้ PNG ถ้ามี (game-rules.md §2)
+              child: PetAvatar(
                 key: ValueKey('water_pet_image_${mood.name}'),
-                assetPath: WaterLogic.moodImage(mood),
-                fallbackIcon: _fallbackMoodIcon(mood),
+                mood: mood,
                 size: 160,
-                color: theme.colorScheme.primary,
               ),
             ),
             const SizedBox(height: 16),
@@ -180,17 +185,6 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
         ),
       ),
     );
-  }
-
-  static IconData _fallbackMoodIcon(PetMood mood) {
-    switch (mood) {
-      case PetMood.critical:
-        return Icons.sentiment_very_dissatisfied;
-      case PetMood.tired:
-        return Icons.sentiment_neutral;
-      case PetMood.happy:
-        return Icons.sentiment_very_satisfied;
-    }
   }
 
   /// 12.5 → "12.5", 100 → "100"

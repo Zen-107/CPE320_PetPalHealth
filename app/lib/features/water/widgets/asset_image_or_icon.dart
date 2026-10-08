@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 /// แสดงภาพจาก assets ตามชื่อไฟล์ใน ux-flow.md §5
 /// ถ้ายังไม่มีไฟล์ภาพ จะแสดงไอคอนสำรองแทน (ไม่ทำให้แอปล่ม)
-// ASSUMPTION: ไฟล์ภาพใน assets/images และ assets/icons ยังไม่มีใน repo
-// จึงยังไม่ประกาศใน pubspec.yaml และใช้ไอคอน Material เป็นภาพสำรอง
+// ASSUMPTION: ไฟล์ไอคอนใน assets/icons ยังไม่มีใน repo จึงยังไม่ประกาศใน
+// pubspec.yaml และใช้ไอคอน Material เป็นภาพสำรอง (ภาพสัตว์เลี้ยงใช้ PetAvatar แทน)
 class AssetImageOrIcon extends StatelessWidget {
   const AssetImageOrIcon({
     super.key,

@@ -60,8 +60,14 @@ class MonthlyReportScreen extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final record = report.records[index];
                       return ListTile(
-                        // ASSUMPTION: แสดงวันที่รูปแบบ yyyy-MM-dd (เอกสารไม่ได้กำหนดรูปแบบ)
-                        title: Text(formatDateKey(record.date)),
+                        // DECIDED: Zen-107 2026-10-08 — วันที่รูปแบบ dd/MM/yyyy
+                        // (ux-flow.md S-2)
+                        title: Text(
+                          WaterLogic.formatHistoryDate(record.date),
+                          key: ValueKey(
+                            'water_history_date_${formatDateKey(record.date)}',
+                          ),
+                        ),
                         trailing: Text('${record.cups} แก้ว'),
                       );
                     },

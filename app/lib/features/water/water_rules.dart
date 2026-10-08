@@ -63,6 +63,9 @@ class WaterRules {
 
   /// ระยะเวลาแสดง Toast Anti-Spam
   // DECIDED: team 2026-10-08 — Toast Anti-Spam หายเองใน 2 วินาที (game-rules.md §4, §5)
+  // DECIDED: Zen-107 2026-10-08 — นับ 2 วินาทีตั้งแต่ Toast แสดงเต็มจอ ไม่นับเวลา
+  // animation (ux-flow.md §6) — SnackBar เริ่มจับเวลา duration หลัง animation
+  // เข้าเสร็จแล้วอยู่แล้ว
   static const int antiSpamToastSeconds = 2;
 
   // ---------------------------------------------------------------------------
