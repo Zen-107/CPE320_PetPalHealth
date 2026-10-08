@@ -1,0 +1,9 @@
+# คนที่ต้องเอาไฟล์ไปใช้ต่อ = คนอนุมัติ
+docs/*/brief.md         @lovelasooronie-thong @Sompong125
+docs/*/requirements.md  @Naikochi @Sompong125
+docs/*/ux-flow.md       @Zen-107 @Sompong125
+docs/*/game-rules.md    @Zen-107 @Sompong125
+app/                    @Sompong125
+docs/*/review.md        @Zen-107
+agents/                 @Sompong125
+agents/reviewer.md      @Zen-107

@@ -24,7 +24,7 @@ A, B, C ออกแบบ agent ของตัวเอง (ไฟล์ใน
 agents/            ไฟล์บทบาท agent (frontmatter: name, owner, description, role, goal, input_files, output_file / เนื้อหา = backstory)
   product.md  design.md  reviewer.md   แม่แบบว่าง — A / B / C ออกแบบเอง
   dev.md  qa.md                        ฝั่ง Dev/QA (Claude Code)
-.claude/agents/    Claude Code sub-agent (dev, qa) — ชี้ไปอ่าน agents/dev.md, agents/qa.md
+.claude/agents/    Claude Code sub-agent (dev, qa) — role/goal/backstory ตรงกับ agents/dev.md, agents/qa.md (ต่างกันแค่ frontmatter)
 crew/              โค้ด CrewAI
   main.py          python crew/main.py --feature water --role product|design|review
   llm.py           สร้าง LLM จาก .env (Gemini หลัก, 429 → สลับ Groq อัตโนมัติ)
