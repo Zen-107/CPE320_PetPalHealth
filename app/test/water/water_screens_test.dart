@@ -123,21 +123,42 @@ void main() {
       expect(textOf(tester, energyText), '12.5%');
     });
 
-    testWidgets('AC3_S1_toast_disappears_after_2_seconds', (tester) async {
-      // game-rules §4 / คำตัดสินทีม: Toast หายเองใน 2 วินาที
+    testWidgets('AC3_S1_toast_disappears_2s_after_fully_shown_excluding_animation',
+        (tester) async {
+      // game-rules §4 + ux-flow §6 (ข้อตัดสิน Zen-107 2026-10-08):
+      // Toast หายเองใน 2 วินาที นับตั้งแต่ Toast แสดงเต็มจอ ไม่นับเวลา animation
+      // QA v2: ปรับจาก v1 ให้วัดจุดเริ่มนับ = animation เข้าเสร็จ (status completed)
+      // และจุดครบ 2 วินาที = เริ่ม animation ออก (status reverse) อย่างชัดเจน
       now = t(8, 10, 0);
       await pumpApp(tester);
       await tapLog(tester);
       now = t(8, 10, 1);
       await tapLog(tester);
-      await tester.pumpAndSettle(); // แสดงเต็มแล้ว
+      Animation<double> anim() => tester.widget<SnackBar>(toast).animation!;
+      expect(anim().status, isNot(AnimationStatus.completed),
+          reason: 'เพิ่งเริ่ม animation เข้า ยังไม่เต็มจอ');
+      // pump ทีละ 10 ms จนแสดงเต็มจอ (animation เข้าเสร็จ)
+      var entryMs = 0;
+      while (anim().status != AnimationStatus.completed) {
+        await tester.pump(const Duration(milliseconds: 10));
+        entryMs += 10;
+        expect(entryMs, lessThan(2000), reason: 'animation เข้าไม่ควรนานเกิน');
+      }
+      expect(entryMs, greaterThan(0), reason: 'มีเวลา animation เข้าจริง');
+      // ณ 1.99 วินาทีหลังแสดงเต็มจอ ต้องยังแสดงเต็มจออยู่
+      // (ถ้านับรวม animation เข้า Toast จะเริ่มหายก่อนจุดนี้)
+      await tester.pump(const Duration(milliseconds: 1990));
       expect(find.text(toastText), findsOneWidget);
-      await tester.pump(const Duration(milliseconds: 1900));
-      expect(find.text(toastText), findsOneWidget,
-          reason: 'ยังไม่ครบ 2 วินาที');
-      await tester.pump(const Duration(milliseconds: 100)); // ครบ 2 วินาที
+      expect(anim().status, AnimationStatus.completed,
+          reason: 'ยังไม่ครบ 2 วินาทีนับจากแสดงเต็มจอ');
+      // ครบ 2.00 วินาที → เริ่มหาย (animation ออก ซึ่งไม่นับในเวลา 2 วินาที)
+      await tester.pump(const Duration(milliseconds: 10));
+      await tester.pump();
+      expect(anim().status, AnimationStatus.reverse,
+          reason: 'ครบ 2 วินาทีนับจากแสดงเต็มจอ ต้องเริ่มหาย');
       await tester.pumpAndSettle();
       expect(find.text(toastText), findsNothing);
+      expect(toast, findsNothing);
     });
 
     testWidgets('AC4_S1_tap_after_5_min_logs_successfully', (tester) async {
