@@ -58,17 +58,17 @@ class WaterRules {
   static const int monthlyAverageDecimals = 1;
 
   // ---------------------------------------------------------------------------
-  // ค่าที่เอกสารยังไม่กำหนด
+  // game-rules.md §4 Toast Anti-Spam
   // ---------------------------------------------------------------------------
 
   /// ระยะเวลาแสดง Toast Anti-Spam
-  // ASSUMPTION: ค่าชั่วคราว รอคำตอบ — ux-flow.md §6 และ game-rules.md §5 ถาม Product
-  // ไว้ว่า 2-3 วินาทีหรือไม่ ยังไม่มีคำตอบ ใช้ 2 วินาทีไปก่อน
+  // DECIDED: team 2026-10-08 — Toast Anti-Spam หายเองใน 2 วินาที (game-rules.md §4, §5)
   static const int antiSpamToastSeconds = 2;
 
   // ---------------------------------------------------------------------------
   // ข้อความบนหน้าจอ (ux-flow.md §2, §4)
   // ---------------------------------------------------------------------------
+  // DECIDED: team 2026-10-08 — ข้อความ Toast ตาม AC-3 (ux-flow.md §4 แก้ให้ตรงแล้ว)
   static const String antiSpamMessage = 'กรุณารอสักครู่ (1 แก้วต่อ 5 นาที)';
   static const String logButtonText = 'ดื่มน้ำ 1 แก้ว';
   static const String monthlyReportButtonText = 'รายงานรายเดือน';

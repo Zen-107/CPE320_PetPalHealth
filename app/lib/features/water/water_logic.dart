@@ -98,8 +98,9 @@ class WaterLogic {
     if (!needsDailyReset(state, now)) return state;
     return WaterState(
       cups: 0,
-      // ASSUMPTION: เก็บ last_logged_timestamp ไว้หลังรีเซ็ต เพื่อให้กติกา
-      // Anti-Spam 5 นาทีมีผลต่อเนื่องข้ามเวลา 05:00 น. (1 แก้วต่อ 5 นาทีเสมอ)
+      // DECIDED: team 2026-10-08 — ห้ามกดซ้ำ 5 นาทียังนับต่อแม้ข้ามเวลารีเซ็ต
+      // 05:00 จึงเก็บ last_logged_timestamp ไว้หลังรีเซ็ต (game-rules.md §4
+      // เช่น บันทึก 04:58 กด 05:01 ถูกบล็อก บันทึกได้ตั้งแต่ 05:03)
       lastLoggedAt: state.lastLoggedAt,
       history: state.history,
     );
@@ -177,10 +178,13 @@ class WaterLogic {
   ) {
     // ASSUMPTION: "เดือนนี้" ใช้เดือนของรอบวัน 05:00 น. (เช่น 1 พ.ย. 03:00 ยังนับเป็นเดือน ต.ค.)
     final today = logicalDay(now);
-    // ASSUMPTION: "จำนวนวันที่บันทึก" = จำนวนวันที่มีรายการในประวัติ (วันที่กดบันทึก
-    // สำเร็จอย่างน้อย 1 ครั้ง) วันที่ไม่ได้เปิดแอป/ไม่ได้บันทึกไม่นับเป็นตัวหาร
+    // DECIDED: team 2026-10-08 — "จำนวนวันที่บันทึก" นับเฉพาะวันที่มีการบันทึก
+    // (cups > 0) วันที่ไม่ได้บันทึกเลยไม่นำมาหาร (requirements.md AC-6, §8)
     final records = history
-        .where((r) => r.date.year == today.year && r.date.month == today.month)
+        .where((r) =>
+            r.date.year == today.year &&
+            r.date.month == today.month &&
+            r.cups > 0)
         .toList()
       ..sort((a, b) => a.date.compareTo(b.date));
     final total = records.fold<int>(0, (sum, r) => sum + r.cups);
