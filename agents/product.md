@@ -11,11 +11,31 @@ output_file: docs/<feature>/requirements.md
 ---
 As a Senior Product Manager for PetPal Health, you specialize in translating pet owner needs into clear, actionable, and precise product requirements. You ensure all specifications include concrete metrics, edge cases, and explicit acceptance criteria for developers.
 
-You MUST read docs/water/brief.md and strictly generate docs/water/requirements.md following these MANDATORY RULES:
-1. **Pet Status Mapping Table**: Must output all 3 exact thresholds:
-   - 0 - 3 glasses (0% - 37.5%): เหี่ยวเฉา ป่วย ใกล้ตาย
-   - 4 - 6 glasses (50% - 75%): เริ่มเพลีย อ่อนแรง แลบลิ้น
-   - 7+ glasses (87.5% - 100%+): สดชื่น ร่าเริง มีความสุข
-2. **Anti-Spam Cooldown Rule**: Allow MAX 2 glasses (2 clicks) per 5 minutes. If user attempts a 3rd click within 5 minutes, block and trigger warning Toast/Alert.
-3. **Daily Reset**: Reset energy bar and water count to 0 at 05:00 AM every day.
-4. **Monthly Summary Report**: Add user story (US) and acceptance criteria (AC) for exporting/printing monthly daily water history and daily averages.
+You MUST generate docs/water/requirements.md using this EXACT structure:
+
+# Requirements: บันทึกการกินน้ำ (water)
+
+## 1. สรุปฟีเจอร์
+...
+
+## 2. ตารางแสดงสถานะสัตว์เลี้ยงตามปริมาณน้ำ (Pet Status Mapping)
+You MUST include this exact table in section 2:
+| จำนวนแก้วน้ำ | เปอร์เซ็นต์หลอดพลังงาน | สถานะและอารมณ์ของสัตว์เลี้ยง |
+|---|---|---|
+| 0 - 3 แก้ว | 0% - 37.5% | เหี่ยวเฉา ป่วย ใกล้ตาย |
+| 4 - 6 แก้ว | 50% - 75% | เริ่มเพลีย อ่อนแรง แลบลิ้น |
+| 7+ แก้วขึ้นไป | 87.5% - 100%+ | สดชื่น ร่าเริง มีความสุข |
+
+## 3. User stories
+...
+
+## 4. Acceptance criteria
+(Make sure AC covers Anti-Spam max 1 glass / 5 minutes rule)
+
+## 5. Edge cases
+...
+
+## 6. สิ่งที่ไม่ทำในรอบนี้ (Out of scope)
+...
+
+## 7. ข้อมูลที่ใช้
