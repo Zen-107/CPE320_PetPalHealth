@@ -7,6 +7,7 @@
 ตัวเลือกเพิ่ม:
     --note "ข้อความ"   สั่งเพิ่มเติมรอบนี้ เช่น "เพิ่ม edge case ตอนเปลี่ยนวัน"
     --overwrite        ยอมเขียนทับไฟล์ output เดิม (ปกติจะหยุดเพื่อกันงานที่แก้มือหาย)
+    --dry-run          แค่พิมพ์รายชื่อไฟล์และขนาดที่จะส่งให้ agent ไม่เรียก API ไม่ต้องมี .env
 
 ทุกรอบจะบันทึก prompt ที่ส่งจริง + ผลลัพธ์ลง logs/<YYYYMMDD-HHMM>_<role>_<feature>.md อัตโนมัติ
 """
@@ -44,7 +45,8 @@ class Role:
     agent: str
     inputs: list[tuple[str, bool]]  # (ชื่อไฟล์ใน docs/<feature>/, บังคับต้องมีไหม)
     outputs: list[Output]
-    include_app: bool = False       # ส่งโค้ดใน app/ ให้ agent อ่านด้วย
+    include_app: bool = False       # ส่งโค้ดใน app/lib/ และเทสต์ใน app/test/ ให้ agent อ่านด้วย
+    include_logs: tuple[str, ...] = ()  # ส่ง log ล่าสุดของบทบาทเหล่านี้ใน logs/ (เช่น dev, qa)
 
 
 ROLES = {
@@ -77,18 +79,24 @@ ROLES = {
     ),
     "review": Role(
         agent="reviewer",
-        inputs=[("requirements.md", True), ("ux-flow.md", False), ("game-rules.md", False)],
+        inputs=[("requirements.md", True), ("ux-flow.md", True), ("game-rules.md", True),
+                ("test-report.md", True)],
         outputs=[Output(
             "review.md",
-            "รีวิวเอกสารทั้งหมด (และโค้ดใน app/ ถ้ามี) ด้วย checklist ใน template ทีละข้อ "
+            "รีวิวเอกสารทั้งหมด โค้ดใน app/lib/ และหลักฐานการทดสอบ (test-report.md + เทสต์ใน app/test/ "
+            "+ log ของ dev/qa) ด้วย checklist ใน template ทีละข้อ "
             "(ผ่าน/ไม่ผ่าน + เหตุผล), ระบุปัญหาพร้อมไฟล์/หัวข้อ/ข้อเสนอแก้, ตรวจว่าตัวเลขในทุกไฟล์ตรงกัน, "
             "สรุปผลว่า 'พร้อมส่ง Dev' หรือ 'ต้องแก้' และเติมตารางผลวัด agent จากข้อมูล log ที่ให้",
         )],
         include_app=True,
+        include_logs=("dev", "qa"),
     ),
 }
 APP = ROOT / "app"
-APP_CODE_LIMIT = 40_000  # ตัวอักษร — กันไม่ให้ prompt ใหญ่จนโควตาฟรีหมด
+# เพดานความยาวข้อมูลประกอบทั้งหมด (ตัวอักษร) — Gemini ฟรีรับข้อความยาวมากไม่ไหว
+# ถ้าเกิน: ไฟล์เทสต์ส่งแค่รายชื่อ test/group ถ้ายังเกินอีก ตัดโค้ดใน app/lib/ ไฟล์ท้าย ๆ (แจ้งทุกไฟล์ที่ตัด)
+CONTEXT_LIMIT = 120_000
+TEST_NAME_RE = re.compile(r"""\b(group|testWidgets|test)\(\s*r?(['"])(.*?)(?<!\\)\2""", re.S)
 
 
 # ---------------------------------------------------------------- utilities
@@ -130,23 +138,96 @@ def previous_runs(feature: str) -> str:
     return "\n".join(rows) or "(ยังไม่มี log ของฟีเจอร์นี้)"
 
 
-def app_code() -> tuple[str, list[str]]:
-    """รวมโค้ดใน app/ ให้ reviewer อ่าน: pubspec.yaml, app/lib/ (โค้ดแอป), app/test/ (เทสต์)"""
-    files = (sorted(APP.glob("pubspec.yaml")) + sorted((APP / "lib").rglob("*.dart"))
-             + sorted((APP / "test").rglob("*.dart")))
-    if not files:
-        return "(ยังไม่มีโค้ดใน app/)", []
-    parts, used, total = [], [], 0
-    for p in files:
-        rel = str(p.relative_to(ROOT)).replace("\\", "/")
-        text = read(p)
-        if total + len(text) > APP_CODE_LIMIT:
-            parts.append(f"(ตัดที่ {APP_CODE_LIMIT} ตัวอักษร — ไฟล์ที่เหลือไม่ได้ส่ง)")
+@dataclass
+class Source:
+    """ไฟล์หนึ่งไฟล์ที่ส่งให้ agent"""
+    path: str            # path แบบ relative เช่น docs/water/requirements.md
+    text: str            # เนื้อหาที่ส่งจริง
+    mode: str = "เต็มไฟล์"
+    kind: str = "doc"    # doc / log / pubspec / lib / test
+
+    @property
+    def sent(self) -> bool:
+        return self.mode != "ไม่ได้ส่ง"
+
+    def block(self) -> str:
+        label = self.path if self.mode == "เต็มไฟล์" else f"{self.path} ({self.mode})"
+        return f"=== {label} ===\n{self.text}\n=== จบ {self.path} ==="
+
+
+def rel(path: Path) -> str:
+    return str(path.relative_to(ROOT)).replace("\\", "/")
+
+
+def latest_log(kind: str, feature: str) -> Path | None:
+    """log ล่าสุดของบทบาท — เรียงตามวันที่-เวลาในชื่อ แล้วตามเลขรอบ (-2, -3 ในนาทีเดียวกัน)"""
+    pattern = re.compile(rf"\d{{8}}-\d{{4}}_{kind}_{re.escape(feature)}(-\d+)?\.md")
+    logs = [p for p in LOGS.glob(f"*_{kind}_{feature}*.md") if pattern.fullmatch(p.name)]
+    return max(logs, key=lambda p: (p.name[:13], len(p.name), p.name)) if logs else None
+
+
+def test_names(text: str) -> str:
+    names = [f"- {kind}: {name}" for kind, _, name in TEST_NAME_RE.findall(text)]
+    return "\n".join(names) or "(ไม่พบชื่อเทสต์)"
+
+
+def collect_sources(role: Role, feature: str) -> tuple[list[Source], list[str], list[str]]:
+    """รวมไฟล์ที่จะส่งให้ agent → (sources, ไฟล์บังคับที่ขาด, คำเตือน)
+
+    ตรวจไฟล์บังคับทุกไฟล์ก่อน แล้วรายงานที่ขาดทั้งหมดในครั้งเดียว
+    """
+    sources, missing, warnings = [], [], []
+    feature_dir = DOCS / feature
+    for filename, required in role.inputs:
+        path = feature_dir / filename
+        name = f"docs/{feature}/{filename}"
+        if path.is_file() and "TODO" in read(path) and not required:
+            warnings.append(f"{name} ยังมี TODO (ยังเป็นแม่แบบ) — จะไม่ส่งไฟล์นี้ให้ agent")
+            sources.append(Source(name, f"({name} ยังไม่ได้เขียน)", "ไม่ได้ส่ง"))
+        elif path.is_file():
+            sources.append(Source(name, read(path)))
+        elif required:
+            missing.append(name)
+        else:
+            warnings.append(f"ไม่มี {name} — จะทำงานต่อโดยไม่ใช้ไฟล์นี้")
+            sources.append(Source(name, f"(ยังไม่มี {name})", "ไม่ได้ส่ง"))
+
+    for kind in role.include_logs:
+        path = latest_log(kind, feature)
+        if path is None:
+            missing.append(f"logs/<วันที่-เวลา>_{kind}_{feature}.md (log ล่าสุดของ {kind})")
+        else:
+            sources.append(Source(rel(path), read(path), kind="log"))
+
+    if role.include_app:
+        pubspec = APP / "pubspec.yaml"
+        if pubspec.is_file():
+            sources.append(Source(rel(pubspec), read(pubspec), kind="pubspec"))
+        for folder, kind in (("lib", "lib"), ("test", "test")):
+            files = sorted((APP / folder).rglob("*.dart"))
+            if not files:
+                missing.append(f"app/{folder}/*.dart")
+            sources += [Source(rel(p), read(p), kind=kind) for p in files]
+
+    fit_to_limit(sources, warnings)
+    return sources, missing, warnings
+
+
+def fit_to_limit(sources: list[Source], warnings: list[str]) -> None:
+    """ย่อให้ไม่เกิน CONTEXT_LIMIT: เอกสาร/log ส่งเต็มเสมอ → เทสต์เหลือแค่ชื่อ → ตัดโค้ดไฟล์ท้าย ๆ"""
+    total = lambda: sum(len(s.text) for s in sources if s.sent)  # noqa: E731
+    if total() <= CONTEXT_LIMIT:
+        return
+    tests = [s for s in sources if s.kind == "test"]
+    for s in tests:
+        s.text, s.mode = test_names(s.text), "เฉพาะชื่อ test/group"
+    if tests:
+        warnings.append(f"ข้อมูลยาวเกิน {CONTEXT_LIMIT:,} ตัวอักษร — ไฟล์เทสต์ส่งเฉพาะชื่อ test/group")
+    for s in reversed([s for s in sources if s.kind == "lib"]):
+        if total() <= CONTEXT_LIMIT:
             break
-        parts.append(f"=== {rel} ===\n{text}\n=== จบ {rel} ===")
-        used.append(rel)
-        total += len(text)
-    return "\n\n".join(parts), used
+        s.text, s.mode = f"({s.path} ไม่ได้ส่ง — เกินเพดาน {CONTEXT_LIMIT:,} ตัวอักษร)", "ไม่ได้ส่ง"
+        warnings.append(f"ยังยาวเกินเพดาน — ไม่ได้ส่งโค้ด {s.path}")
 
 
 def agent_version(path: Path) -> str:
@@ -160,7 +241,8 @@ def contract_problem(spec, role: Role, feature: str) -> str | None:
     """เทียบ input_files/output_file ใน frontmatter กับข้อตกลงที่ main.py ใช้จริง"""
     norm = lambda paths: sorted(p.replace("\\", "/").rstrip("/") for p in paths)  # noqa: E731
     want_out = norm(f"docs/{feature}/{o.filename}" for o in role.outputs)
-    want_in = norm([f"docs/{feature}/{f}" for f, _ in role.inputs] + (["app"] if role.include_app else []))
+    want_in = norm([f"docs/{feature}/{f}" for f, _ in role.inputs] + (["app"] if role.include_app else [])
+                   + (["logs"] if role.include_logs else []))
     got = spec.render(feature)
     rows = []
     if norm(got.output_files) != want_out:
@@ -353,6 +435,41 @@ def write_log(path: Path, args, inputs_used: list[str], attempts: list[Attempt],
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def missing_message(role_name: str, missing: list[str]) -> str:
+    return (f"บทบาท {role_name} ต้องมีไฟล์เหล่านี้ก่อน แต่ยังไม่มี:\n  - " + "\n  - ".join(missing)
+            + "\n  (git pull แล้วดูว่าเพื่อนส่งงานแล้วหรือยัง)")
+
+
+def dry_run(args) -> int:
+    """พิมพ์รายชื่อไฟล์และขนาดที่จะส่ง — ไม่ต้องมี .env ไม่เรียก API ไม่เขียนไฟล์"""
+    role = ROLES[args.role]
+    print(f"[dry-run] role={args.role} feature={args.feature} (ยังไม่เรียก API)")
+    try:
+        spec = require_designed(role.agent)
+        problem = contract_problem(spec, role, args.feature)
+        if problem:
+            print(f"[เตือน] รันจริงจะหยุดที่ข้อนี้: {problem}")
+    except (AgentNotDesigned, KeyError, ValueError) as exc:
+        print(f"[เตือน] รันจริงจะหยุดที่ข้อนี้: {exc}")
+
+    sources, missing, warnings = collect_sources(role, args.feature)
+    if missing:
+        return fail(missing_message(args.role, missing))
+    for w in warnings:
+        print(f"[เตือน] {w}")
+
+    width = max(len(s.path) for s in sources)
+    print(f"\n{'ไฟล์'.ljust(width)}  {'ตัวอักษร':>9}  {'bytes':>8}  วิธีส่ง")
+    for s in sources:
+        chars = len(s.text) if s.sent else 0
+        size = len(s.text.encode("utf-8")) if s.sent else 0
+        print(f"{s.path.ljust(width)}  {chars:>9,}  {size:>8,}  {s.mode}")
+    total = sum(len(s.text) for s in sources if s.sent)
+    print(f"\nรวม {sum(s.sent for s in sources)} ไฟล์ที่ส่ง · {total:,} ตัวอักษร "
+          f"(เพดาน {CONTEXT_LIMIT:,}) — ยังไม่รวม template และข้อมูล log ของฟีเจอร์")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     for stream in (sys.stdout, sys.stderr):
         try:
@@ -365,10 +482,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--role", required=True, choices=sorted(ROLES))
     parser.add_argument("--note", default="", help="คำสั่งเพิ่มเติมรอบนี้")
     parser.add_argument("--overwrite", action="store_true", help="เขียนทับ output เดิม")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="แค่พิมพ์รายชื่อไฟล์และขนาดที่จะส่ง ไม่เรียก API")
     args = parser.parse_args(argv)
 
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", args.feature):
         return fail("--feature ใช้ได้แค่ a-z 0-9 และ - เช่น water หรือ sleep-time", 2)
+    if args.dry_run:
+        return dry_run(args)
 
     problem = llm_mod.env_file_problem()
     if problem:
@@ -400,27 +521,13 @@ def main(argv: list[str] | None = None) -> int:
     agent_ver = agent_version(spec.path)
 
     # 1) ไฟล์ input
-    context_parts, inputs_used = [], []
-    for filename, required in role.inputs:
-        path = feature_dir / filename
-        if path.is_file() and "TODO" in read(path) and not required:
-            print(f"[เตือน] docs/{args.feature}/{filename} ยังมี TODO (ยังเป็นแม่แบบ) "
-                  "— จะไม่ส่งไฟล์นี้ให้ agent")
-            context_parts.append(f"(docs/{args.feature}/{filename} ยังไม่ได้เขียน)")
-        elif path.is_file():
-            context_parts.append(f"=== docs/{args.feature}/{filename} ===\n{read(path)}\n"
-                                 f"=== จบ {filename} ===")
-            inputs_used.append(f"docs/{args.feature}/{filename}")
-        elif required:
-            return fail(f"ยังไม่มี docs/{args.feature}/{filename} — บทบาท {args.role} "
-                        f"ต้องรอไฟล์นี้ก่อน (git pull แล้วดูว่าเพื่อนส่งงานแล้วหรือยัง)")
-        else:
-            print(f"[เตือน] ไม่มี docs/{args.feature}/{filename} — จะทำงานต่อโดยไม่ใช้ไฟล์นี้")
-            context_parts.append(f"(ยังไม่มี docs/{args.feature}/{filename})")
-    if role.include_app:
-        code, used = app_code()
-        context_parts.append(f"=== โค้ดใน app/ ===\n{code}\n=== จบโค้ด ===")
-        inputs_used += used
+    sources, missing, warnings = collect_sources(role, args.feature)
+    if missing:
+        return fail(missing_message(args.role, missing))
+    for w in warnings:
+        print(f"[เตือน] {w}")
+    context_parts = [s.block() if s.sent else s.text for s in sources]
+    inputs_used = [s.path + ("" if s.mode == "เต็มไฟล์" else f" ({s.mode})") for s in sources if s.sent]
     if args.role == "review":
         context_parts.append(f"=== ข้อมูลจาก log ของฟีเจอร์นี้ (ใช้ทำตารางผลวัด agent) ===\n"
                              f"{previous_runs(args.feature)}")
