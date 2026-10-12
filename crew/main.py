@@ -91,6 +91,23 @@ ROLES = {
         include_app=True,
         include_logs=("dev", "qa"),
     ),
+        "design_review": Role(
+        agent="design_reviewer",
+        inputs=[
+            ("requirements.md", True),
+            ("ux-flow.md", True),
+            ("game-rules.md", True),
+        ],
+        outputs=[Output(
+            "design-review.md",
+            "ตรวจเอกสาร Requirements, UX Flow และ Game Rules ก่อนส่งงานให้ Dev "
+            "ตรวจความครบถ้วนและความสอดคล้องของเอกสาร ตรวจตัวเลข ชื่อสถานะ "
+            "ขั้นตอนการใช้งาน และ edge cases โดยอ้างอิงหลักฐานจากไฟล์ที่ได้รับ "
+            "ระบุข้อผิดพลาดพร้อมไฟล์/หัวข้อ เหตุผล และแนวทางแก้ไข "
+            "ห้ามแต่งข้อกำหนดหรือผลทดสอบขึ้นเอง "
+            "สรุปผลเป็น PASS, NEEDS_FIX หรือ INSUFFICIENT_EVIDENCE",
+        )],
+    ),
 }
 APP = ROOT / "app"
 # เพดานความยาวข้อมูลประกอบทั้งหมด (ตัวอักษร) — Gemini ฟรีรับข้อความยาวมากไม่ไหว
