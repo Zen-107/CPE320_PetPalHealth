@@ -1,0 +1,214 @@
+import 'dart:async';
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+
+import 'pet_constants.dart';
+import 'pet_painter.dart';
+import 'pet_pose.dart';
+
+/// The ONE pet of PetPal Health — a chubby frog with a leaf on its head
+/// (docs/_design/character.md). Every feature uses this widget.
+///
+/// ```dart
+/// PetCharacter(
+///   key: ValueKey('water_pet_image_${mood.name}'), // feature's own key
+///   pose: PetPose.waterHappy,
+///   size: 160,
+///   cheerTrigger: _cupsAddedCount, // increment → happy cheer
+/// )
+/// ```
+///
+/// - [animate] false → one static frame, no AnimationController / Timer
+///   is created (use in widget tests and previews).
+/// - With [animate] true the pet breathes forever, so tests must use
+///   `tester.pump(duration)` instead of `pumpAndSettle()`.
+/// - Tests: find the painter with `find.byKey(PetKeys.painter)` and read
+///   `(tester.widget<CustomPaint>(...).painter as PetCharacterPainter)`.
+class PetCharacter extends StatefulWidget {
+  const PetCharacter({
+    super.key,
+    required this.pose,
+    this.size = 160,
+    this.animate = true,
+    this.random,
+    this.cheerTrigger = 0,
+    this.reactToTap = true,
+    this.onTap,
+    this.semanticLabel,
+  });
+
+  /// Expression + body shape. Use the presets, e.g. [PetPose.waterTired],
+  /// [PetPose.stepsMuscle].
+  final PetPose pose;
+
+  /// Side of the square box in logical px (screens use 160).
+  final double size;
+
+  /// false = static frame, no tickers.
+  final bool animate;
+
+  /// Source of randomness for blink timing (pass `Random(seed)` in tests).
+  final math.Random? random;
+
+  /// Every time this value changes the pet plays a cheer (2 happy hops,
+  /// arms up). Features increment it when water / steps are added.
+  final int cheerTrigger;
+
+  /// Tap on the pet → jump + funny face.
+  final bool reactToTap;
+
+  /// Extra callback on tap (called even when [animate] is false).
+  final VoidCallback? onTap;
+
+  /// Optional accessibility label (e.g. the status text).
+  final String? semanticLabel;
+
+  @override
+  State<PetCharacter> createState() => _PetCharacterState();
+}
+
+class _PetCharacterState extends State<PetCharacter>
+    with TickerProviderStateMixin {
+  AnimationController? _breath;
+  AnimationController? _blink;
+  AnimationController? _action;
+  Timer? _blinkTimer;
+  PetAction _currentAction = PetAction.none;
+  late math.Random _random;
+
+  @override
+  void initState() {
+    super.initState();
+    _random = widget.random ?? math.Random();
+    if (widget.animate) _start();
+  }
+
+  @override
+  void didUpdateWidget(PetCharacter oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.random != oldWidget.random) {
+      _random = widget.random ?? math.Random();
+    }
+    if (widget.animate != oldWidget.animate) {
+      widget.animate ? _start() : _stop();
+    } else if (widget.animate &&
+        widget.pose.isLowState != oldWidget.pose.isLowState) {
+      _breath!
+        ..duration = _breathDuration
+        ..repeat(reverse: true);
+    }
+    if (widget.cheerTrigger != oldWidget.cheerTrigger) {
+      _play(PetAction.cheer);
+    }
+  }
+
+  Duration get _breathDuration =>
+      widget.pose.isLowState ? PetTiming.breathLow : PetTiming.breath;
+
+  void _start() {
+    _breath = AnimationController(vsync: this, duration: _breathDuration)
+      ..repeat(reverse: true);
+    _blink = AnimationController(vsync: this, duration: PetTiming.blink);
+    _action = AnimationController(vsync: this)
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed && mounted) {
+          setState(() => _currentAction = PetAction.none);
+        }
+      });
+    _scheduleBlink();
+  }
+
+  void _stop() {
+    _blinkTimer?.cancel();
+    _blinkTimer = null;
+    _breath?.dispose();
+    _blink?.dispose();
+    _action?.dispose();
+    _breath = _blink = _action = null;
+    _currentAction = PetAction.none;
+  }
+
+  void _scheduleBlink() {
+    _blinkTimer?.cancel();
+    final gap = PetTiming.blinkGapMinMs +
+        _random.nextInt(PetTiming.blinkGapRangeMs);
+    _blinkTimer = Timer(Duration(milliseconds: gap), () {
+      if (!mounted || _blink == null) return;
+      _blink!.forward(from: 0);
+      _scheduleBlink();
+    });
+  }
+
+  void _play(PetAction action) {
+    final c = _action;
+    if (c == null) return; // static: no animation
+    setState(() => _currentAction = action);
+    c.duration =
+        action == PetAction.jump ? PetTiming.jump : PetTiming.cheer;
+    c.forward(from: 0);
+  }
+
+  void _handleTap() {
+    widget.onTap?.call();
+    if (!widget.reactToTap) return;
+    // don't interrupt a cheer
+    if (_currentAction == PetAction.cheer &&
+        (_action?.isAnimating ?? false)) {
+      return;
+    }
+    _play(PetAction.jump);
+  }
+
+  @override
+  void dispose() {
+    _stop();
+    super.dispose();
+  }
+
+  PetCharacterPainter _painter() {
+    final blinkT = _blink?.value ?? 0;
+    // A reaction counts only while its controller is running, so the frame
+    // in which it completes already shows the normal face.
+    final playing = _action?.isAnimating ?? false;
+    final action = playing ? _currentAction : PetAction.none;
+    return PetCharacterPainter(
+      pose: widget.pose,
+      breath: Curves.easeInOut.transform(_breath?.value ?? 0),
+      // 0 → 1 → 0 over the blink
+      blink: blinkT == 0 ? 0 : math.sin(math.pi * blinkT),
+      action: action,
+      actionProgress: action == PetAction.none ? 0 : _action!.value,
+      animated: widget.animate,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final box = Size.square(widget.size);
+    Widget paint() => CustomPaint(
+          key: PetKeys.painter,
+          size: box,
+          painter: _painter(),
+        );
+
+    final listenables = <Listenable>[?_breath, ?_blink, ?_action];
+    final Widget child = listenables.isEmpty
+        ? paint()
+        : AnimatedBuilder(
+            animation: Listenable.merge(listenables),
+            builder: (context, _) => paint(),
+          );
+
+    return Semantics(
+      label: widget.semanticLabel,
+      image: true,
+      child: GestureDetector(
+        key: PetKeys.character,
+        behavior: HitTestBehavior.opaque,
+        onTap: _handleTap,
+        child: SizedBox.fromSize(size: box, child: child),
+      ),
+    );
+  }
+}
