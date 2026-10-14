@@ -11,13 +11,27 @@ import 'pet_pose.dart';
 /// (docs/_design/character.md). Every feature uses this widget.
 ///
 /// ```dart
-/// PetCharacter(
-///   key: ValueKey('water_pet_image_${mood.name}'), // feature's own key
-///   pose: PetPose.waterHappy,
-///   size: 160,
-///   cheerTrigger: _cupsAddedCount, // increment → happy cheer
+/// // in the screen's State:
+/// final GlobalKey _petKey = GlobalKey(debugLabel: 'water_pet');
+/// ...
+/// KeyedSubtree(
+///   key: ValueKey('water_pet_image_${mood.name}'), // feature key (changes)
+///   child: PetCharacter(
+///     key: _petKey, // stable for the life of the screen
+///     pose: PetPose.waterHappy,
+///     size: 160,
+///     cheerTrigger: _cupsAddedCount, // increment → happy cheer
+///   ),
 /// )
 /// ```
+///
+/// - Do NOT put the per-state feature key (`water_pet_image_<mood>`,
+///   `steps_pet_image_<status>`) on [PetCharacter] itself: when the state
+///   changes the key changes, Flutter disposes the old State and creates a
+///   new one, so the cheer that the same tap started is dropped (BUG-PET-1).
+///   Put that key on a `KeyedSubtree` wrapper and give [PetCharacter] a
+///   `GlobalKey` held in the screen's State — the GlobalKey lets the same
+///   State move under the new wrapper and keep playing.
 ///
 /// - [animate] false → one static frame, no AnimationController / Timer
 ///   is created (use in widget tests and previews).

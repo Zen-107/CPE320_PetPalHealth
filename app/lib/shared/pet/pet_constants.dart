@@ -58,6 +58,85 @@ abstract final class PetColors {
 
   /// Ground shadow.
   static const Color shadow = Color(0x22000000);
+
+  /// Drool bubble fill (derpy look, happy / content only).
+  static const Color drool = Color(0xFFD4EEFB);
+
+  /// Drool bubble rim.
+  static const Color droolOutline = Color(0xFF86C3E3);
+}
+
+/// One eye of the derpy look (character.md §4.1). Values are fractions of
+/// the sclera radius `r`.
+@immutable
+class PetEyeSpec {
+  const PetEyeSpec({
+    required this.lid,
+    required this.pupilDx,
+    required this.pupilDy,
+    required this.pupil,
+  });
+
+  /// Upper-lid closure 0 (open) .. 1 (closed).
+  final double lid;
+
+  /// Pupil offset from the eye centre (+x = right, +y = down).
+  final double pupilDx;
+  final double pupilDy;
+
+  /// Pupil radius.
+  final double pupil;
+}
+
+/// The derpy charm layered on every open-eye face (character.md §4.1):
+/// cross-eyed pupils of different sizes, one half-lidded eye in the
+/// non-low faces, and a drool bubble at the mouth corner.
+abstract final class PetDerpy {
+  /// (left eye, right eye) per expression. The right eye is always the
+  /// sleepier, smaller-pupil one; the left eye looks up-and-out.
+  /// Low states keep BOTH lids >= 0.45 so they stay clearly droopier than
+  /// the single half-lid (<= 0.38) of the healthy faces.
+  static const Map<PetExpression, (PetEyeSpec, PetEyeSpec)> eyes = {
+    PetExpression.happy: (
+      PetEyeSpec(lid: 0.0, pupilDx: -0.18, pupilDy: -0.10, pupil: 0.62),
+      PetEyeSpec(lid: 0.30, pupilDx: 0.20, pupilDy: 0.24, pupil: 0.50),
+    ),
+    PetExpression.content: (
+      PetEyeSpec(lid: 0.0, pupilDx: -0.16, pupilDy: -0.04, pupil: 0.58),
+      PetEyeSpec(lid: 0.38, pupilDx: 0.22, pupilDy: 0.28, pupil: 0.46),
+    ),
+    PetExpression.proud: (
+      PetEyeSpec(lid: 0.0, pupilDx: -0.14, pupilDy: -0.12, pupil: 0.60),
+      PetEyeSpec(lid: 0.24, pupilDx: 0.18, pupilDy: 0.14, pupil: 0.50),
+    ),
+    PetExpression.tired: (
+      PetEyeSpec(lid: 0.45, pupilDx: -0.12, pupilDy: 0.30, pupil: 0.56),
+      PetEyeSpec(lid: 0.55, pupilDx: 0.16, pupilDy: 0.36, pupil: 0.48),
+    ),
+    PetExpression.critical: (
+      PetEyeSpec(lid: 0.62, pupilDx: -0.10, pupilDy: 0.45, pupil: 0.48),
+      PetEyeSpec(lid: 0.70, pupilDx: 0.14, pupilDy: 0.50, pupil: 0.42),
+    ),
+  };
+
+  /// Lid at or below this on a non-low face = the derpy single half-lid.
+  static const double halfLidMax = 0.40;
+
+  /// The lid line overshoots the sclera on both sides and its ends droop.
+  static const double lidOvershoot = 0.014;
+  static const double lidDroop = 0.012;
+
+  /// Expressions that show the drool bubble (static, not during
+  /// jump / cheer). Low states don't drool: their blue element is sweat
+  /// and drooling would read as "sick".
+  static const Set<PetExpression> droolExpressions = {
+    PetExpression.happy,
+    PetExpression.content,
+  };
+
+  /// Drool bubble radius (grows up to +15 % with the breath).
+  static const double droolRadius = 0.028;
+  static const double droolBreathGrow = 0.15;
 }
 
 /// Body proportions per shape, as fractions of the square side `s`

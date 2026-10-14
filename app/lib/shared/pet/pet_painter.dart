@@ -58,6 +58,28 @@ class PetCharacterPainter extends CustomPainter {
   bool get hasDroopyEyes =>
       pose.isLowState && face != PetFace.blink && action == PetAction.none;
 
+  /// The derpy open eyes (cross-eyed pupils of different sizes, character.md
+  /// §4.1) are drawn this frame — any mood face, not blink / funny / cheer.
+  bool get isDerpyEye => action == PetAction.none && face != PetFace.blink;
+
+  /// Left / right eye spec of the current expression (character.md §4.1).
+  (PetEyeSpec, PetEyeSpec) get eyeSpecs => PetDerpy.eyes[expression]!;
+
+  /// Exactly one eye is half-lidded (the derpy default look of the healthy
+  /// faces happy / content / proud). Low states use [hasDroopyEyes] instead.
+  bool get hasHalfLidEye {
+    if (!isDerpyEye || pose.isLowState) return false;
+    final (l, r) = eyeSpecs;
+    return (l.lid > 0) != (r.lid > 0) &&
+        math.max(l.lid, r.lid) <= PetDerpy.halfLidMax;
+  }
+
+  /// The little drool bubble at the mouth corner is drawn this frame
+  /// (happy / content only; kept while blinking; hidden during jump/cheer).
+  bool get showsDroolBubble =>
+      action == PetAction.none &&
+      PetDerpy.droolExpressions.contains(expression);
+
   /// Sparkles are drawn this frame.
   bool get showsSparkles =>
       isCheering ||
@@ -274,6 +296,9 @@ class PetCharacterPainter extends CustomPainter {
     // 10. mouth + tongue
     _paintMouth(canvas, g);
 
+    // 10b. drool bubble (derpy, happy / content)
+    if (showsDroolBubble) _paintDrool(canvas, g);
+
     // 11. leaf on the head
     _paintLeaf(canvas, g);
 
@@ -404,6 +429,8 @@ class PetCharacterPainter extends CustomPainter {
     final f = face;
     for (final side in const [-1.0, 1.0]) {
       final e = side < 0 ? g.leftEye : g.rightEye;
+      final (left, right) = eyeSpecs;
+      final spec = side < 0 ? left : right;
       switch (f) {
         case PetFace.cheer:
           // ^ ^
@@ -428,11 +455,10 @@ class PetCharacterPainter extends CustomPainter {
         case PetFace.blink:
           _closedEye(canvas, e, r);
         case PetFace.happy:
-          _openEye(canvas, e, r, lid: 0, pupilDy: 0.05, pupil: 0.64);
         case PetFace.content:
-          _openEye(canvas, e, r, lid: 0.15, pupilDy: 0.12, pupil: 0.58);
+          _openEye(canvas, e, r, spec, side);
         case PetFace.proud:
-          _openEye(canvas, e, r, lid: 0.0, pupilDy: -0.02, pupil: 0.60);
+          _openEye(canvas, e, r, spec, side);
           // determined brows (inner end lower)
           canvas.drawLine(
             Offset(e.dx + side * r * 0.75, e.dy - r - 0.050),
@@ -440,9 +466,9 @@ class PetCharacterPainter extends CustomPainter {
             _stroke(0.026),
           );
         case PetFace.tired:
-          _openEye(canvas, e, r, lid: 0.45, pupilDy: 0.30, pupil: 0.56);
+          _openEye(canvas, e, r, spec, side);
         case PetFace.critical:
-          _openEye(canvas, e, r, lid: 0.62, pupilDy: 0.45, pupil: 0.48);
+          _openEye(canvas, e, r, spec, side);
           // eye bags
           canvas.drawArc(
             Rect.fromCenter(
@@ -458,34 +484,56 @@ class PetCharacterPainter extends CustomPainter {
     }
   }
 
-  void _openEye(Canvas canvas, Offset e, double r,
-      {required double lid, required double pupilDy, required double pupil}) {
-    final effLid = math.max(lid, blink.clamp(0.0, 1.0));
+  /// One derpy open eye: pupil offset/size and upper lid from [spec]
+  /// (character.md §4.1). [side] −1 = left, +1 = right (lid droops outward).
+  void _openEye(Canvas canvas, Offset e, double r, PetEyeSpec spec,
+      double side) {
+    final effLid = math.max(spec.lid, blink.clamp(0.0, 1.0));
     if (effLid >= 0.92) {
       _closedEye(canvas, e, r);
       return;
     }
     final sclera = Rect.fromCircle(center: e, radius: r);
     canvas.drawOval(sclera, Paint()..color = PetColors.eyeWhite);
-    final pc = e.translate(0, pupilDy * r);
-    final pr = r * pupil;
+    canvas.save();
+    canvas.clipPath(Path()..addOval(sclera));
+    final pc = e.translate(spec.pupilDx * r, spec.pupilDy * r);
+    final pr = r * spec.pupil;
     canvas.drawCircle(pc, pr, Paint()..color = PetColors.pupil);
     final hi = Paint()..color = PetColors.eyeWhite;
     canvas.drawCircle(pc.translate(-pr * 0.35, -pr * 0.38), pr * 0.34, hi);
     canvas.drawCircle(pc.translate(pr * 0.38, pr * 0.32), pr * 0.15, hi);
+    Path? lidEdge;
     if (effLid > 0) {
       final lidY = e.dy - r + 2 * r * effLid;
-      canvas.save();
-      canvas.clipPath(Path()..addOval(sclera));
-      canvas.drawRect(Rect.fromLTRB(e.dx - r, e.dy - r - 0.01, e.dx + r, lidY),
-          Paint()..color = _bodyColor);
-      canvas.restore();
       final dy = lidY - e.dy;
       final hw = math.sqrt(math.max(0, r * r - dy * dy));
-      canvas.drawLine(Offset(e.dx - hw, lidY), Offset(e.dx + hw, lidY),
-          _stroke(0.02));
+      final x0 = e.dx - hw - PetDerpy.lidOvershoot;
+      final x1 = e.dx + hw + PetDerpy.lidOvershoot;
+      // droopy lid: the outer end hangs a bit lower, the middle bulges up
+      final yIn = lidY + PetDerpy.lidDroop * 0.3;
+      final yOut = lidY + PetDerpy.lidDroop;
+      final yl = side < 0 ? yOut : yIn;
+      final yr = side < 0 ? yIn : yOut;
+      lidEdge = Path()
+        ..moveTo(x0, yl)
+        ..quadraticBezierTo(e.dx, lidY - PetDerpy.lidDroop, x1, yr);
+      // the lid fill is clipped to a slightly bigger circle (hidden under the
+      // sclera outline) so no white hairline shows above the lid
+      canvas.restore();
+      canvas.save();
+      canvas.clipPath(Path()..addOval(sclera.inflate(0.006)));
+      canvas.drawPath(
+        Path.from(lidEdge)
+          ..lineTo(x1, e.dy - r - 0.02)
+          ..lineTo(x0, e.dy - r - 0.02)
+          ..close(),
+        Paint()..color = _bodyColor,
+      );
     }
+    canvas.restore();
     canvas.drawOval(sclera, _stroke(0.014));
+    if (lidEdge != null) canvas.drawPath(lidEdge, _stroke(0.022));
   }
 
   void _closedEye(Canvas canvas, Offset e, double r) {
@@ -606,6 +654,21 @@ class PetCharacterPainter extends CustomPainter {
       top.translate(0, l * 0.65),
       _stroke(0.010, PetColors.mouth.withValues(alpha: 0.6)),
     );
+  }
+
+  /// Light-blue drool bubble with a highlight next to the tongue / mouth
+  /// corner (character.md §4.1).
+  void _paintDrool(Canvas canvas, _Geo g) {
+    final c = expression == PetExpression.happy
+        // hangs under the right corner of the open "D" smile
+        ? Offset(g.cx + 0.118, g.mouthY + 0.036)
+        // next to the tip of the "blep" tongue
+        : Offset(g.cx + 0.068, g.mouthY + 0.066);
+    final rad = PetDerpy.droolRadius * (1 + PetDerpy.droolBreathGrow * breath);
+    canvas.drawCircle(c, rad, Paint()..color = PetColors.drool);
+    canvas.drawCircle(c, rad, _stroke(0.008, PetColors.droolOutline));
+    canvas.drawCircle(c.translate(-rad * 0.35, -rad * 0.35), rad * 0.30,
+        Paint()..color = PetColors.eyeWhite);
   }
 
   // ------------------------------------------------------------------ leaf
