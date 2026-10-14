@@ -18,6 +18,7 @@ class WaterController extends ChangeNotifier {
 
   WaterState _state = WaterState.initial;
   bool _isLoaded = false;
+  int _petCheerCount = 0;
 
   WaterState get state => _state;
   bool get isLoaded => _isLoaded;
@@ -28,6 +29,12 @@ class WaterController extends ChangeNotifier {
   double get displayEnergyFraction =>
       WaterLogic.displayEnergyFraction(_state.cups);
   PetMood get mood => WaterLogic.moodFor(_state.cups);
+
+  /// จำนวนครั้งที่บันทึกน้ำสำเร็จ (outcome == logged) ตั้งแต่สร้าง controller
+  /// ส่งเป็น `PetCharacter.cheerTrigger` — ค่าเปลี่ยน = สัตว์เลี้ยงเล่นท่าดีใจ 1 ครั้ง
+  /// เก็บไว้ใน controller (ไม่ใช่ใน widget) เพื่อให้ rebuild ไม่ทำให้เล่นท่าดีใจเอง
+  /// และไม่บันทึกลงเครื่อง (เป็นค่าการแสดงผล ไม่ใช่ข้อมูลเกม)
+  int get petCheerCount => _petCheerCount;
 
   /// โหลดข้อมูลจากเครื่อง แล้วตรวจรีเซ็ต 05:00 น. ทันที (AC-5, EC-2)
   Future<void> load() async {
@@ -68,6 +75,7 @@ class WaterController extends ChangeNotifier {
     final result = WaterLogic.logWater(_state, _clock());
     final changed = !identical(result.state, _state);
     _state = result.state;
+    if (result.outcome == LogWaterOutcome.logged) _petCheerCount++;
     if (changed) notifyListeners();
     if (changed) await _repository.save(_state);
     return result.outcome;

@@ -58,10 +58,8 @@ class StepsRules {
   static const String statusLeanText = 'หุ่นลีน (สมส่วน)';
   static const String statusMuscleText = 'มีกล้ามขา';
 
-  static const String petFatImage = 'assets/images/pet_fat.png';
-  static const String petChubbyImage = 'assets/images/pet_chubby.png';
-  static const String petLeanImage = 'assets/images/pet_lean.png';
-  static const String petMuscleImage = 'assets/images/pet_muscle.png';
+  // DECIDED (owner 2026-10-14): ไม่มีค่าคงที่ภาพสัตว์เลี้ยง PNG อีกต่อไป — ทั้งแอปใช้
+  // shared PetCharacter (lib/shared/pet/) ท่าต่อสถานะดู StepsLogic.poseFor
 
   // ---------------------------------------------------------------------------
   // ui-spec D-1 / Q-2 ปุ่มเพิ่มก้าวเดินด้วยมือ

@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:petpal_health/shared/pet/pet.dart';
 
 import '../../water/widgets/asset_image_or_icon.dart';
 import '../steps_controller.dart';
 import '../steps_logic.dart';
 import '../steps_rules.dart';
-import '../widgets/steps_pet_avatar.dart';
 import 'steps_goal_screen.dart';
 import 'steps_monthly_report_screen.dart';
 
@@ -17,6 +17,7 @@ class StepsDashboardScreen extends StatefulWidget {
     required this.controller,
     this.onOpenSettings,
     this.reportCapture,
+    this.animatePet,
   });
 
   final StepsController controller;
@@ -29,12 +30,21 @@ class StepsDashboardScreen extends StatefulWidget {
   /// ส่งต่อให้ S-3 (ใช้แทนการจับภาพจริงในเทสต์)
   final StepsReportCapture? reportCapture;
 
+  /// `PetCharacter.animate` — null = [kPetAnimateByDefault] (แอปจริง animate,
+  /// ระหว่าง flutter test เป็นภาพนิ่ง)
+  final bool? animatePet;
+
   @override
   State<StepsDashboardScreen> createState() => _StepsDashboardScreenState();
 }
 
 class _StepsDashboardScreenState extends State<StepsDashboardScreen>
     with WidgetsBindingObserver {
+  // BUG-PET-1 (fix round 1): PetCharacter ต้องมีตัวตนคงที่ข้ามการเปลี่ยนสถานะ
+  // ไม่เช่นนั้น State ใหม่จะเห็น cheerTrigger ที่เพิ่มแล้วใน initState และไม่เล่น cheer
+  // (character.md §6) — key ฟีเจอร์ที่เปลี่ยนตามสถานะย้ายไปอยู่ที่ KeyedSubtree ที่ห่อไว้
+  // GlobalKey ทำให้ State ของ PetCharacter ถูกย้าย (reparent) ไปใต้ wrapper ใหม่ได้
+  final GlobalKey _petKey = GlobalKey(debugLabel: 'steps_pet');
   // ASSUMPTION: ตรวจรอบวันทุก 1 วินาทีขณะเปิดหน้าค้าง เพื่อรีเซ็ต ณ 05:00:00 (AC-6, EC-5)
   // โดยไม่ต้อง Restart — เอกสารไม่กำหนดความถี่ (ตรวจเป็นเพียงการเทียบวันที่ ไม่หนัก)
   static const Duration _dayCheckInterval = Duration(seconds: 1);
@@ -201,11 +211,20 @@ class _StepsDashboardScreenState extends State<StepsDashboardScreen>
                   children: [
                     const Spacer(),
                     // รูปสัตว์เลี้ยง (AC-5)
+                    // DECIDED (owner 2026-10-14): ทั้งแอปใช้สัตว์เลี้ยงตัวเดียว = shared
+                    // PetCharacter (docs/_design/character.md) แทน StepsPetAvatar /
+                    // PNG ตาม game-rules.md §2 · key ฟีเจอร์ steps_pet_image_<status> (อยู่บน wrapper)
                     Center(
-                      child: StepsPetAvatar(
-                        key: StepsPetAvatar.imageKey(status),
-                        status: status,
-                        size: 160,
+                      // key ฟีเจอร์ steps_pet_image_<status> อยู่บน wrapper (BUG-PET-1)
+                      child: KeyedSubtree(
+                        key: ValueKey('steps_pet_image_${status.name}'),
+                        child: PetCharacter(
+                          key: _petKey,
+                          pose: StepsLogic.poseFor(status),
+                          size: 160,
+                          animate: widget.animatePet ?? kPetAnimateByDefault,
+                          cheerTrigger: _controller.petCheerCount,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),

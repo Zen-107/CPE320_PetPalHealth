@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:petpal_health/shared/pet/pet.dart';
 
 import '../../steps/screens/steps_dashboard_screen.dart';
 import '../../steps/steps_controller.dart';
@@ -12,7 +13,6 @@ import '../water_logic.dart';
 import '../water_models.dart';
 import '../water_rules.dart';
 import '../widgets/asset_image_or_icon.dart';
-import '../widgets/pet_avatar.dart';
 import 'monthly_report_screen.dart';
 
 /// S-1 หน้าจอหลัก (Home / Water Tracker) — ux-flow.md §2
@@ -21,9 +21,14 @@ class WaterHomeScreen extends StatefulWidget {
     super.key,
     required this.controller,
     this.stepsController,
+    this.animatePet,
   });
 
   final WaterController controller;
+
+  /// `PetCharacter.animate` — null = [kPetAnimateByDefault] (แอปจริง animate,
+  /// ระหว่าง flutter test เป็นภาพนิ่ง)
+  final bool? animatePet;
 
   /// ทางเข้าฟีเจอร์ steps (docs/steps/ui-spec.md §2.0) — null = สร้างเองเมื่อกดปุ่มครั้งแรก
   final StepsController? stepsController;
@@ -34,6 +39,11 @@ class WaterHomeScreen extends StatefulWidget {
 
 class _WaterHomeScreenState extends State<WaterHomeScreen>
     with WidgetsBindingObserver {
+  // BUG-PET-1 (fix round 1): PetCharacter ต้องมีตัวตนคงที่ข้ามการเปลี่ยนสถานะ
+  // ไม่เช่นนั้น State ใหม่จะเห็น cheerTrigger ที่เพิ่มแล้วใน initState และไม่เล่น cheer
+  // (character.md §6) — key ฟีเจอร์ที่เปลี่ยนตามสถานะย้ายไปอยู่ที่ KeyedSubtree ที่ห่อไว้
+  // GlobalKey ทำให้ State ของ PetCharacter ถูกย้าย (reparent) ไปใต้ wrapper ใหม่ได้
+  final GlobalKey _petKey = GlobalKey(debugLabel: 'water_pet');
   Timer? _resetTimer;
   StepsController? _ownedStepsController;
 
@@ -168,11 +178,20 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
             const Spacer(),
             // Pet Avatar / Status (AC-2)
             Center(
-              // วาดด้วย CustomPainter หรือใช้ PNG ถ้ามี (game-rules.md §2)
-              child: PetAvatar(
+              // DECIDED (owner 2026-10-14): ทั้งแอปใช้สัตว์เลี้ยงตัวเดียว = shared
+              // PetCharacter (docs/_design/character.md) — ไม่ใช้ PNG
+              // ภาพ PNG ตาม game-rules.md §2 อีกต่อไป · ท่าต่ออารมณ์ = WaterLogic.poseFor
+              // (ไฟล์เดิมย้ายไป assets/images/legacy/ และไม่ถูก bundle)
+              // key ฟีเจอร์ water_pet_image_<mood> อยู่บน wrapper (BUG-PET-1)
+              child: KeyedSubtree(
                 key: ValueKey('water_pet_image_${mood.name}'),
-                mood: mood,
-                size: 160,
+                child: PetCharacter(
+                  key: _petKey,
+                  pose: WaterLogic.poseFor(mood),
+                  size: 160,
+                  animate: widget.animatePet ?? kPetAnimateByDefault,
+                  cheerTrigger: _controller.petCheerCount,
+                ),
               ),
             ),
             const SizedBox(height: 16),

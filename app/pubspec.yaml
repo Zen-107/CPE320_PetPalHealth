@@ -59,8 +59,11 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # ภาพสัตว์เลี้ยง PNG ตามชื่อใน docs/water/game-rules.md §2 (ถ้ามี) — ไม่มีไฟล์ก็ใช้ภาพวาด
+  # assets/images/ — ภาพประกอบของฟีเจอร์ (เช่น bg_dashboard.png ของ steps ถ้ามี)
   # โฟลเดอร์ต้องมีอยู่จริง (assets/images/.gitkeep) ไม่งั้น build พัง
+  # DECIDED (owner 2026-10-14): สัตว์เลี้ยงทั้งแอปคือ PetCharacter (lib/shared/pet/)
+  # PNG สัตว์เลี้ยงเดิมย้ายไป assets/images/legacy/ และตั้งใจ "ไม่" ลงทะเบียนโฟลเดอร์นั้น
+  # (รายการแบบโฟลเดอร์ของ Flutter ไม่รวมโฟลเดอร์ย่อย) จึงไม่ถูก bundle เข้าแอป
   assets:
     - assets/images/
 

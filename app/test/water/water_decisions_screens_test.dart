@@ -3,8 +3,9 @@
 // - ข้อ 2 นาฬิกาย้อนกลับ: เปิด S-1 / กดปุ่ม / เปิด S-2 ไม่ crash ไม่ลบข้อมูล (game-rules §4)
 // - ข้อ 3 ข้อมูลเสีย/ผิดชนิด: S-1/S-2 แสดงสถานะว่าง ไม่ crash (game-rules §4, ux-flow §4)
 // - ข้อ 4 วันที่หน้าประวัติ dd/MM/yyyy (ux-flow S-2)
-// - ข้อ 5 ภาพสัตว์เลี้ยงตามอารมณ์ 0–3 / 4–6 / 7+ (game-rules §2) — QA v3: มี PNG แล้ว
-//   ตรวจทั้งทาง PNG และภาพวาด (ดู expectPetMood)
+// - ข้อ 5 ภาพสัตว์เลี้ยงตามอารมณ์ 0–3 / 4–6 / 7+ (game-rules §2 ช่วงค่า)
+//   QA pet (2026-10-14): owner ตัดสินให้ทั้งแอปใช้ PetCharacter ตัวเดียว (docs/_design/character.md)
+//   แทน PNG/PetPainter → ตรวจ pose ของ PetCharacter + painter แทน (ดู expectPetMood)
 // เวลาควบคุมผ่าน clock ของ WaterController — ไม่ใช้เวลาจริง
 import 'dart:convert';
 
@@ -13,9 +14,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:petpal_health/features/water/water_controller.dart';
 import 'package:petpal_health/features/water/water_models.dart';
 import 'package:petpal_health/features/water/water_repository.dart';
-import 'package:petpal_health/features/water/widgets/pet_avatar.dart';
-import 'package:petpal_health/features/water/widgets/pet_painter.dart';
 import 'package:petpal_health/main.dart';
+import 'package:petpal_health/shared/pet/pet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 DateTime dt(int month, int day, int hour, int minute, [int second = 0]) =>
@@ -27,11 +27,17 @@ DailyWaterRecord rec(int month, int day, int cups) =>
 const critical = 'เหี่ยวเฉา ป่วย ใกล้ตาย';
 const tired = 'เริ่มเพลีย อ่อนแรง แลบลิ้น';
 const happy = 'สดชื่น ร่าเริง มีความสุข';
-// ชื่อไฟล์ภาพจาก game-rules.md §2
-const pngByMood = {
-  PetMood.critical: 'assets/images/pet_critical.png',
-  PetMood.tired: 'assets/images/pet_tired.png',
-  PetMood.happy: 'assets/images/pet_happy.png',
+// ช่วงค่า game-rules.md §2 → preset ของ character.md §5 (ไม่ใช้ PNG แล้ว — owner 2026-10-14)
+const poseByMood = {
+  PetMood.critical: PetPose.waterCritical,
+  PetMood.tired: PetPose.waterTired,
+  PetMood.happy: PetPose.waterHappy,
+};
+// สีหน้าตาม character.md §5 (water ใช้รูปร่าง normal ทุกสถานะ)
+const faceByMood = {
+  PetMood.critical: PetFace.critical,
+  PetMood.tired: PetFace.tired,
+  PetMood.happy: PetFace.happy,
 };
 const emptyText = 'ยังไม่มีประวัติการดื่มน้ำในเดือนนี้';
 
@@ -68,46 +74,42 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  /// ตรวจว่าสัตว์เลี้ยงแสดงอารมณ์ `mood` และไม่มีอารมณ์อื่นค้าง (QA v3: ปรับเพราะมี PNG แล้ว)
+  /// ตรวจว่าสัตว์เลี้ยงแสดงอารมณ์ `mood` และไม่มีอารมณ์อื่นค้าง
   ///
-  /// game-rules §2: มี PNG ใน app/assets/images/ → ใช้ PNG แทนภาพวาด ไฟล์นี้ไม่ได้อุ่น
-  /// static manifest cache ของ PetAvatar ใน real zone จึงอาจเห็นทางใดทางหนึ่ง
-  /// (เทสต์แรกของไฟล์เห็น PNG, เทสต์ถัดไปเห็นภาพวาดระหว่างรอ manifest) — ตรวจว่าทางที่แสดง
-  /// ถูกอารมณ์: PNG ต้องชื่อไฟล์ตาม §2 / ภาพวาดต้องเป็น PetPainter ของ mood นั้น
-  /// ทาง PNG แบบบังคับดู water_pet_png_test.dart · ทางภาพวาด fallback ดู water_pet_png_test.dart
-  /// และ water_pet_no_manifest_test.dart
+  /// QA pet (2026-10-14): PetCharacter ตัวเดียว (character.md §5, §7) — key ฟีเจอร์
+  /// `water_pet_image_<mood>` อยู่บน PetCharacter, painter หาได้จาก PetKeys.painter
   void expectPetMood(WidgetTester tester, PetMood mood) {
     final wrapper = find.byKey(ValueKey('water_pet_image_${mood.name}'));
     expect(wrapper, findsOneWidget);
-    expect(tester.widget<PetAvatar>(wrapper).mood, mood);
-    final png = find.descendant(
-        of: wrapper, matching: find.byKey(PetAvatar.pngKey(mood)));
-    final painter = find.descendant(
-        of: wrapper, matching: find.byKey(PetAvatar.painterKey(mood)));
-    final pngCount = png.evaluate().length;
-    final painterCount = painter.evaluate().length;
-    expect(pngCount + painterCount, greaterThan(0),
-        reason: 'ต้องมีภาพ PNG หรือภาพวาดของ ${mood.name}');
-    if (pngCount > 0) {
-      expect(pngCount, 1);
-      final provider = tester.widget<Image>(png).image as AssetImage;
-      expect(provider.assetName, pngByMood[mood]);
-    }
-    if (painterCount > 0) {
-      expect(painterCount, 1);
-      final cp = tester.widget<CustomPaint>(painter);
-      expect(cp.painter, isA<PetPainter>());
-      expect((cp.painter! as PetPainter).mood, mood);
-    }
+    // QA pet รอบ 2: key ฟีเจอร์อยู่ที่ KeyedSubtree ที่ห่อ PetCharacter (แก้ BUG-PET-1)
+    final pet = tester.widget<PetCharacter>(
+        find.descendant(of: wrapper, matching: find.byType(PetCharacter)));
+    expect(pet.pose, poseByMood[mood]);
+    expect(pet.size, 160);
+    final painterFinder =
+        find.descendant(of: wrapper, matching: find.byKey(PetKeys.painter));
+    expect(painterFinder, findsOneWidget);
+    final painter = tester.widget<CustomPaint>(painterFinder).painter!
+        as PetCharacterPainter;
+    expect(painter.pose, poseByMood[mood]);
+    expect(painter.bodyShape, PetBodyShape.normal);
+    expect(painter.face, faceByMood[mood]);
+    expect(find.descendant(of: wrapper, matching: find.byType(Image)),
+        findsNothing,
+        reason: 'สัตว์เลี้ยงต้องวาดด้วย PetCharacter ไม่ใช่ภาพ PNG');
+    final petImages = tester
+        .widgetList<Image>(find.byType(Image))
+        .map((i) => i.image)
+        .whereType<AssetImage>()
+        .where((a) => a.assetName.contains('pet_'));
+    expect(petImages, isEmpty, reason: 'ห้ามอ้าง assets pet_*.png');
     for (final other in PetMood.values.where((m) => m != mood)) {
-      expect(find.byKey(PetAvatar.painterKey(other)), findsNothing);
-      expect(find.byKey(PetAvatar.pngKey(other)), findsNothing);
       expect(find.byKey(ValueKey('water_pet_image_${other.name}')),
           findsNothing);
     }
   }
 
-  group('ข้อตัดสิน 5: ภาพสัตว์เลี้ยงตามอารมณ์ (PNG หรือ painter) ขอบ 3/4 และ 6/7', () {
+  group('ข้อตัดสิน 5: ภาพสัตว์เลี้ยงตามอารมณ์ (PetCharacter) ขอบ 3/4 และ 6/7', () {
     testWidgets('EDGE_S1_pet_mood_0_cups_critical', (tester) async {
       now = dt(10, 8, 10, 0);
       await pumpWith(tester, WaterState.initial);

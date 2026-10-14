@@ -32,6 +32,7 @@ class StepsController extends ChangeNotifier {
   StepsState _state = StepsState.initial;
   bool _isLoaded = false;
   bool _savingGoal = false;
+  int _petCheerCount = 0;
   List<DailyWaterRecord> _waterRecords = const [];
 
   StepsTrackingStatus _trackingStatus;
@@ -58,6 +59,12 @@ class StepsController extends ChangeNotifier {
       StepsLogic.energyBarFraction(steps, activeGoal);
   StepsPetStatus get petStatus => StepsLogic.statusFor(steps, activeGoal);
   String get countText => StepsLogic.countText(steps, activeGoal);
+
+  /// จำนวนครั้งที่เพิ่มก้าวสำเร็จ (outcome == added) ตั้งแต่สร้าง controller
+  /// ส่งเป็น `PetCharacter.cheerTrigger` — ค่าเปลี่ยน = สัตว์เลี้ยงเล่นท่าดีใจ 1 ครั้ง
+  /// เก็บไว้ใน controller (ไม่ใช่ใน widget) เพื่อให้ rebuild ไม่ทำให้เล่นท่าดีใจเอง
+  /// และไม่บันทึกลงเครื่อง (เป็นค่าการแสดงผล ไม่ใช่ข้อมูลเกม)
+  int get petCheerCount => _petCheerCount;
 
   bool get canChangeGoal => StepsLogic.canChangeGoal(_state, _clock());
   int get remainingGoalQuota =>
@@ -123,6 +130,7 @@ class StepsController extends ChangeNotifier {
     if (!_isLoaded) return AddStepsOutcome.notReady;
     if (isTrackingLocked) return AddStepsOutcome.locked;
     _state = StepsLogic.addSteps(_state, amount, _clock());
+    _petCheerCount++;
     notifyListeners();
     await _trySave(_state);
     return AddStepsOutcome.added;

@@ -3,6 +3,7 @@
 /// ทุกฟังก์ชันที่เกี่ยวกับเวลารับ `now` เป็นพารามิเตอร์ เพื่อให้ QA ทดสอบได้
 library;
 
+import '../../shared/pet/pet_pose.dart' show PetPose;
 import 'water_models.dart';
 import 'water_rules.dart';
 
@@ -53,16 +54,15 @@ class WaterLogic {
     }
   }
 
-  static String moodImage(PetMood mood) {
-    switch (mood) {
-      case PetMood.critical:
-        return WaterRules.petCriticalImage;
-      case PetMood.tired:
-        return WaterRules.petTiredImage;
-      case PetMood.happy:
-        return WaterRules.petHappyImage;
-    }
-  }
+  /// อารมณ์ water → ท่าของ shared pet (0–3 / 4–6 / 7+ แก้ว ตาม game-rules.md §2)
+  // DECIDED (owner 2026-10-14): ทั้งแอปใช้สัตว์เลี้ยงตัวเดียว = shared PetCharacter
+  // (docs/_design/character.md) — แทน moodImage / ภาพ PNG สัตว์เลี้ยง (ย้ายไป legacy/) ของ
+  // game-rules.md §2 · ตัวระบุภาพต่อสถานะคือ PetPose ไม่ใช่ path ของ PNG
+  static PetPose poseFor(PetMood mood) => switch (mood) {
+        PetMood.critical => PetPose.waterCritical,
+        PetMood.tired => PetPose.waterTired,
+        PetMood.happy => PetPose.waterHappy,
+      };
 
   // ---------------------------------------------------------------------------
   // รอบวัน 05:00 น. (US-5, AC-5, EC-2)

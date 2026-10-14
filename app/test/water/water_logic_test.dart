@@ -4,6 +4,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petpal_health/features/water/water_logic.dart';
 import 'package:petpal_health/features/water/water_models.dart';
+import 'package:petpal_health/shared/pet/pet_pose.dart';
 
 /// เวลาในเดือน ต.ค. 2026 (ปรับวัน/ชั่วโมง/นาที/วินาทีได้)
 DateTime t(int day, int hour, int minute, [int second = 0]) =>
@@ -89,15 +90,23 @@ void main() {
       expect(WaterLogic.moodText(PetMood.happy), 'สดชื่น ร่าเริง มีความสุข');
     });
 
-    test('AC2_mood_images_match_game_rules_section_2', () {
-      expect(WaterLogic.moodImage(WaterLogic.moodFor(3)),
-          'assets/images/pet_critical.png');
-      expect(WaterLogic.moodImage(WaterLogic.moodFor(4)),
-          'assets/images/pet_tired.png');
-      expect(WaterLogic.moodImage(WaterLogic.moodFor(6)),
-          'assets/images/pet_tired.png');
-      expect(WaterLogic.moodImage(WaterLogic.moodFor(7)),
-          'assets/images/pet_happy.png');
+    test('AC2_mood_poses_match_game_rules_section_2_and_character_md', () {
+      // QA pet (2026-10-14): owner ตัดสินให้ใช้ PetCharacter แทน PNG ของ §2
+      // ช่วงค่า = game-rules §2, preset = character.md §5
+      expect(WaterLogic.poseFor(WaterLogic.moodFor(0)), PetPose.waterCritical);
+      expect(WaterLogic.poseFor(WaterLogic.moodFor(3)), PetPose.waterCritical);
+      expect(WaterLogic.poseFor(WaterLogic.moodFor(4)), PetPose.waterTired);
+      expect(WaterLogic.poseFor(WaterLogic.moodFor(6)), PetPose.waterTired);
+      expect(WaterLogic.poseFor(WaterLogic.moodFor(7)), PetPose.waterHappy);
+      expect(WaterLogic.poseFor(WaterLogic.moodFor(12)), PetPose.waterHappy);
+      // character.md §5: water ใช้รูปร่าง normal; สีหน้า critical / tired / happy
+      for (final m in PetMood.values) {
+        expect(WaterLogic.poseFor(m).body, PetBodyShape.normal);
+      }
+      expect(WaterLogic.poseFor(PetMood.critical).expression,
+          PetExpression.critical);
+      expect(WaterLogic.poseFor(PetMood.tired).expression, PetExpression.tired);
+      expect(WaterLogic.poseFor(PetMood.happy).expression, PetExpression.happy);
     });
   });
 

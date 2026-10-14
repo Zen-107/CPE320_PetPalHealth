@@ -8,6 +8,7 @@ import 'package:petpal_health/features/steps/steps_logic.dart';
 import 'package:petpal_health/features/steps/steps_models.dart';
 import 'package:petpal_health/features/steps/steps_rules.dart';
 import 'package:petpal_health/features/water/water_models.dart';
+import 'package:petpal_health/shared/pet/pet_pose.dart';
 
 // ---------------------------------------------------------------------------
 // ค่าจากเอกสาร (game-rules.md §1, AC-2, ux-flow S-2)
@@ -130,22 +131,50 @@ void main() {
       }
     });
 
-    test('AC5_enum_codes_thai_labels_and_images_per_docs', () {
-      // requirements §7 Enum + AC-5 ป้ายไทย + game-rules §2 ไฟล์ภาพ
+    test('AC5_enum_codes_thai_labels_and_poses_per_docs', () {
+      // requirements §7 Enum + AC-5 ป้ายไทย
+      // QA pet (2026-10-14): ภาพ pet_*.png ของ game-rules §2 ถูกแทนด้วย PetCharacter
+      // (owner ตัดสิน) → ตรวจ preset ตาม character.md §5 แทนชื่อไฟล์
       expect(StepsPetStatus.values.map((s) => s.code).toList(),
           ['FAT', 'CHUBBY', 'LEAN', 'MUSCLE']);
       expect(StepsLogic.statusText(StepsPetStatus.fat), 'อ้วนอืด');
       expect(StepsLogic.statusText(StepsPetStatus.chubby), 'จ่ำม่ำ');
       expect(StepsLogic.statusText(StepsPetStatus.lean), 'หุ่นลีน (สมส่วน)');
       expect(StepsLogic.statusText(StepsPetStatus.muscle), 'มีกล้ามขา');
-      expect(StepsLogic.statusImage(StepsPetStatus.fat),
-          'assets/images/pet_fat.png');
-      expect(StepsLogic.statusImage(StepsPetStatus.chubby),
-          'assets/images/pet_chubby.png');
-      expect(StepsLogic.statusImage(StepsPetStatus.lean),
-          'assets/images/pet_lean.png');
-      expect(StepsLogic.statusImage(StepsPetStatus.muscle),
-          'assets/images/pet_muscle.png');
+      expect(StepsLogic.poseFor(StepsPetStatus.fat), PetPose.stepsFat);
+      expect(StepsLogic.poseFor(StepsPetStatus.chubby), PetPose.stepsChubby);
+      expect(StepsLogic.poseFor(StepsPetStatus.lean), PetPose.stepsLean);
+      expect(StepsLogic.poseFor(StepsPetStatus.muscle), PetPose.stepsMuscle);
+      // character.md §5: รูปร่าง + สีหน้า
+      const expected = {
+        StepsPetStatus.fat: (PetBodyShape.fat, PetExpression.tired),
+        StepsPetStatus.chubby: (PetBodyShape.chubby, PetExpression.content),
+        StepsPetStatus.lean: (PetBodyShape.lean, PetExpression.happy),
+        StepsPetStatus.muscle: (PetBodyShape.muscle, PetExpression.proud),
+      };
+      for (final e in expected.entries) {
+        final pose = StepsLogic.poseFor(e.key);
+        expect(pose.body, e.value.$1, reason: e.key.name);
+        expect(pose.expression, e.value.$2, reason: e.key.name);
+      }
+    });
+
+    test('AC5_pose_at_thresholds_2799_2800_5599_5600_7999_8000_of_8000', () {
+      // game-rules §2 ขอบ [0,35) [35,70) [70,100) [100,∞) ที่เป้าหมาย 8,000
+      const cases = {
+        0: PetPose.stepsFat,
+        2799: PetPose.stepsFat,
+        2800: PetPose.stepsChubby,
+        5599: PetPose.stepsChubby,
+        5600: PetPose.stepsLean,
+        7999: PetPose.stepsLean,
+        8000: PetPose.stepsMuscle,
+        8001: PetPose.stepsMuscle,
+      };
+      cases.forEach((steps, pose) {
+        expect(StepsLogic.poseFor(StepsLogic.statusFor(steps, 8000)), pose,
+            reason: '$steps/8000');
+      });
     });
   });
 

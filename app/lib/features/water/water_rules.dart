@@ -42,9 +42,8 @@ class WaterRules {
   static const String statusTiredText = 'เริ่มเพลีย อ่อนแรง แลบลิ้น';
   static const String statusHappyText = 'สดชื่น ร่าเริง มีความสุข';
 
-  static const String petCriticalImage = 'assets/images/pet_critical.png';
-  static const String petTiredImage = 'assets/images/pet_tired.png';
-  static const String petHappyImage = 'assets/images/pet_happy.png';
+  // DECIDED (owner 2026-10-14): ไม่มีค่าคงที่ภาพสัตว์เลี้ยง PNG อีกต่อไป — ทั้งแอปใช้
+  // shared PetCharacter (lib/shared/pet/) ท่าต่อสถานะดู WaterLogic.poseFor
 
   // ---------------------------------------------------------------------------
   // ux-flow.md §5 ไอคอน

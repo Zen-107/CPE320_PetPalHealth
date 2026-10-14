@@ -3,6 +3,7 @@
 /// ทุกฟังก์ชันที่เกี่ยวกับเวลารับ `now` เป็นพารามิเตอร์ เพื่อให้ QA ทดสอบได้
 library;
 
+import '../../shared/pet/pet_pose.dart' show PetPose;
 import '../water/water_models.dart' show DailyWaterRecord;
 import 'steps_models.dart';
 import 'steps_rules.dart';
@@ -48,11 +49,15 @@ class StepsLogic {
         StepsPetStatus.muscle => StepsRules.statusMuscleText,
       };
 
-  static String statusImage(StepsPetStatus status) => switch (status) {
-        StepsPetStatus.fat => StepsRules.petFatImage,
-        StepsPetStatus.chubby => StepsRules.petChubbyImage,
-        StepsPetStatus.lean => StepsRules.petLeanImage,
-        StepsPetStatus.muscle => StepsRules.petMuscleImage,
+  /// สถานะ steps → ท่าของ shared pet (FAT / CHUBBY / LEAN / MUSCLE ตาม game-rules.md §2)
+  // DECIDED (owner 2026-10-14): ทั้งแอปใช้สัตว์เลี้ยงตัวเดียว = shared PetCharacter
+  // (docs/_design/character.md) — แทน statusImage / ภาพ PNG สัตว์เลี้ยง (ย้ายไป legacy/) ของ
+  // game-rules.md §2 และ ui-spec · ตัวระบุภาพต่อสถานะคือ PetPose ไม่ใช่ path ของ PNG
+  static PetPose poseFor(StepsPetStatus status) => switch (status) {
+        StepsPetStatus.fat => PetPose.stepsFat,
+        StepsPetStatus.chubby => PetPose.stepsChubby,
+        StepsPetStatus.lean => PetPose.stepsLean,
+        StepsPetStatus.muscle => PetPose.stepsMuscle,
       };
 
   // ---------------------------------------------------------------------------
