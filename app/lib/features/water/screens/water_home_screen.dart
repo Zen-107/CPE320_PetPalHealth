@@ -2,6 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../steps/screens/steps_dashboard_screen.dart';
+import '../../steps/steps_controller.dart';
+import '../../steps/steps_external.dart';
+import '../../steps/steps_repository.dart';
+import '../../steps/steps_rules.dart';
 import '../water_controller.dart';
 import '../water_logic.dart';
 import '../water_models.dart';
@@ -12,9 +17,16 @@ import 'monthly_report_screen.dart';
 
 /// S-1 หน้าจอหลัก (Home / Water Tracker) — ux-flow.md §2
 class WaterHomeScreen extends StatefulWidget {
-  const WaterHomeScreen({super.key, required this.controller});
+  const WaterHomeScreen({
+    super.key,
+    required this.controller,
+    this.stepsController,
+  });
 
   final WaterController controller;
+
+  /// ทางเข้าฟีเจอร์ steps (docs/steps/ui-spec.md §2.0) — null = สร้างเองเมื่อกดปุ่มครั้งแรก
+  final StepsController? stepsController;
 
   @override
   State<WaterHomeScreen> createState() => _WaterHomeScreenState();
@@ -23,6 +35,7 @@ class WaterHomeScreen extends StatefulWidget {
 class _WaterHomeScreenState extends State<WaterHomeScreen>
     with WidgetsBindingObserver {
   Timer? _resetTimer;
+  StepsController? _ownedStepsController;
 
   // ASSUMPTION: ตรวจรีเซ็ต 05:00 น. ทุก 1 นาทีระหว่างเปิดแอปค้างไว้
   // (AC-5 กำหนดเฉพาะตอนเปิดแอป ส่วนนี้ทำให้หน้าจอรีเซ็ตเองแม้แอปเปิดค้างข้าม 05:00 น.)
@@ -48,6 +61,7 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
   @override
   void dispose() {
     _resetTimer?.cancel();
+    _ownedStepsController?.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -89,12 +103,34 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
     );
   }
 
+  /// เปิด S-1 ของ steps (docs/steps/ui-spec.md §2.0, D-3)
+  void _openSteps() {
+    final steps = widget.stepsController ??
+        (_ownedStepsController ??= StepsController(
+          repository: SharedPrefsStepsRepository(),
+          waterHistory: ControllerWaterHistorySource(_controller),
+        ));
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => StepsDashboardScreen(controller: steps),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('PetPal Health'),
         actions: [
+          // ui-spec §2.0: ใช้ IconButton + tooltip แทน TextButton.icon เพราะ AppBar
+          // มีปุ่มข้อความไทย 2 ปุ่มจะล้นบนจอแคบ 360 dp
+          IconButton(
+            key: const Key('steps_entry_button'),
+            onPressed: _openSteps,
+            icon: const Icon(Icons.directions_walk, size: 24),
+            tooltip: StepsRules.entryButtonText,
+          ),
           TextButton.icon(
             key: const Key('water_monthly_report_button'),
             onPressed: _openMonthlyReport,
