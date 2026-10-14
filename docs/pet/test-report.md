@@ -69,7 +69,7 @@ locator เทสต์ที่ปรับ: `tester.widget<PetCharacter>(find.
 
 ## 4. คำถามถึงเอกสาร
 
-1. character.md §7 (ตัวอย่างโค้ด + ตาราง Key) และ doc comment ใน pet_character.dart ยังให้ใส่ key ฟีเจอร์ที่ PetCharacter ซึ่งขัดกับ §6 เมื่อสถานะเปลี่ยนพร้อมกัน (ต้นเหตุ BUG-PET-1) — โค้ดหน้าจอแก้แล้ว (GlobalKey + KeyedSubtree) แต่ Art ยังต้องปรับเอกสารให้ตรง
+1. (ปิดแล้ว — แก้ใน character.md §7 รอบ art 2026-10-14: GlobalKey ที่ PetCharacter + key ฟีเจอร์ที่ KeyedSubtree) character.md §7 (ตัวอย่างโค้ด + ตาราง Key) และ doc comment ใน pet_character.dart ยังให้ใส่ key ฟีเจอร์ที่ PetCharacter ซึ่งขัดกับ §6 เมื่อสถานะเปลี่ยนพร้อมกัน (ต้นเหตุ BUG-PET-1) — โค้ดหน้าจอแก้แล้ว (GlobalKey + KeyedSubtree) แต่ Art ยังต้องปรับเอกสารให้ตรง
 2. docs/water/game-rules.md §2 และ docs/steps/game-rules.md §2 ยังระบุไฟล์ pet_*.png — ควรอัปเดตตามข้อตัดสิน owner 2026-10-14 (ตอนนี้เทสต์ยึดข้อตัดสินแทนคอลัมน์ "ไฟล์ภาพ")
 3. character.md §6 "1800 + random(0..3200) ms" ไม่ระบุว่ารวม 3200 หรือไม่ — เทสต์ตรวจแค่อยู่ในช่วง [1800, 5000+180]
 4. (decided by owner 2026-10-14: ยังไม่ต้องทำปฏิกิริยาอื่น — แค่ไม่ดีใจ) เมื่อบันทึกถูกบล็อก (anti-spam / ล็อกเซนเซอร์) สัตว์เลี้ยงควรมีปฏิกิริยาอื่นไหม (เช่นส่ายหัว) — เอกสารไม่กำหนด เทสต์ตรวจแค่ "ไม่ดีใจ"
