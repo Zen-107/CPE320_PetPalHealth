@@ -112,7 +112,7 @@ ROLES = {
 APP = ROOT / "app"
 # เพดานความยาวข้อมูลประกอบทั้งหมด (ตัวอักษร) — Gemini ฟรีรับข้อความยาวมากไม่ไหว
 # ถ้าเกิน: ไฟล์เทสต์ส่งแค่รายชื่อ test/group ถ้ายังเกินอีก ตัดโค้ดใน app/lib/ ไฟล์ท้าย ๆ (แจ้งทุกไฟล์ที่ตัด)
-CONTEXT_LIMIT = 120_000
+CONTEXT_LIMIT = 300_000
 TEST_NAME_RE = re.compile(r"""\b(group|testWidgets|test)\(\s*r?(['"])(.*?)(?<!\\)\2""", re.S)
 
 
