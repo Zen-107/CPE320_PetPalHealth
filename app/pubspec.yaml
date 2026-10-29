@@ -34,6 +34,8 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  shared_preferences: ^2.5.6
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:
@@ -56,6 +58,14 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # assets/images/ — ภาพประกอบของฟีเจอร์ (เช่น bg_dashboard.png ของ steps ถ้ามี)
+  # โฟลเดอร์ต้องมีอยู่จริง (assets/images/.gitkeep) ไม่งั้น build พัง
+  # DECIDED (owner 2026-10-14): สัตว์เลี้ยงทั้งแอปคือ PetCharacter (lib/shared/pet/)
+  # PNG สัตว์เลี้ยงเดิมย้ายไป assets/images/legacy/ และตั้งใจ "ไม่" ลงทะเบียนโฟลเดอร์นั้น
+  # (รายการแบบโฟลเดอร์ของ Flutter ไม่รวมโฟลเดอร์ย่อย) จึงไม่ถูก bundle เข้าแอป
+  assets:
+    - assets/images/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
