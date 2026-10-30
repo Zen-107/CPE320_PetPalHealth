@@ -1,13 +1,13 @@
 # คัมภีร์ตัวละคร (Character Bible) — กบน้อย PetPal
 
 > แหล่งความจริงเรื่องหน้าตา/ท่าทางของสัตว์เลี้ยงทั้งแอป โค้ดอยู่ที่ `app/lib/shared/pet/` ค่าทุกตัวในเอกสารนี้ตรงกับ `pet_constants.dart`
-> ผู้ดูแล: Art agent (`.claude/agents/art.md`) · อัปเดตล่าสุด 2026-10-14 (รอบ 2 — ลุค "เอ๋อ" (derpy): ตาเหล่ หนังตาตกข้างเดียว ฟองน้ำลาย · แก้ตัวอย่างการใส่ Key §7)
+> ผู้ดูแล: Art agent (`.claude/agents/art.md`) · อัปเดตล่าสุด 2026-10-30 (รอบ 3 — ฟีเจอร์ food: สีหน้า `eating` / `full` / `overfed`, รูปร่าง `stuffed`, ลูปเคี้ยว) · รอบ 2 2026-10-14 (ลุค "เอ๋อ": ตาเหล่ หนังตาตกข้างเดียว ฟองน้ำลาย · ตัวอย่างการใส่ Key §7)
 
 ## 1. ตัวละคร
 
 - กบตัวกลมอ้วนนุ่ม (ทรงโมจิ: หัวกับตัวเป็นก้อนเดียว ก้นแบน) ตาโตอยู่บนปุ่มนูนสองข้างของหัว มีใบไม้ปักบนหัว แก้มชมพู แลบลิ้นเป็นเอกลักษณ์
 - นิสัย: เอ๋อ ๆ แต่ใจดี (dopey-but-kind) — แม้ตอนปกติก็มักแลบลิ้นนิด ๆ ("blep") ตาเหล่มองคนละทิศ หนังตาตกข้างเดียว มีฟองน้ำลายเล็ก ๆ ที่มุมปาก (§4.1) ไม่ดุ ไม่น่ากลัวแม้ในสถานะแย่ (ป่วยแบบน่าสงสาร ไม่ใช่น่ากลัว)
-- สไตล์: เวกเตอร์เรียบ สีพาสเทล เส้นขอบเขียวเข้มหนา มุมมน ไม่มีเงาไล่สี (ยกเว้นเงาพื้นและเงาเสี้ยวที่ต้นขา MUSCLE)
+- สไตล์: เวกเตอร์เรียบ สีพาสเทล เส้นขอบเขียวเข้มหนา มุมมน ไม่มีเงาไล่สี (ยกเว้นเงาพื้น เงาเสี้ยวที่ต้นขา MUSCLE และไฮไลต์บนพุง STUFFED)
 - มีตัวเดียวทั้งแอป — ทุกฟีเจอร์ใช้ widget `PetCharacter` เท่านั้น ห้ามวาดสัตว์เลี้ยงตัวอื่น
 - ภาพแรงบันดาลใจ `docs/_design/character-frog.png` (ยืมมาจากงานอื่น) ใช้เป็น **แรงบันดาลใจเท่านั้น**: รอบ 2 หยิบเสน่ห์ "เอ๋อ" (ตาเหล่ หนังตาตกข้างเดียว ฟองน้ำลาย) มาวางทับตัวละครเดิม ไม่ลอกภาพ ไม่ใช้ชื่อตัวละครในภาพ และห้ามนำภาพนั้นไปใช้ในแอป
 
@@ -34,6 +34,9 @@
 | `shadow` | `#22000000` | เงาบนพื้น |
 | `drool` | `#D4EEFB` | ฟองน้ำลาย (ไฮไลต์ใช้ `eyeWhite`) — รอบ 2 |
 | `droolOutline` | `#86C3E3` | ขอบฟองน้ำลาย — รอบ 2 |
+| `rice` | `#FFFCF2` | ข้าวปั้น (onigiri) ที่ถือกิน + เม็ดข้าวกระเด็น — รอบ 3 food |
+| `nori` | `#34473A` | แถบสาหร่ายบนข้าวปั้น — รอบ 3 food |
+| `burp` | `#F2F6EE` | ควันเรอ (`full`) ขอบใช้ `outline` alpha 0.55 — รอบ 3 food |
 
 สีตามคำบรรยายเจ้าของใช้ตรงตามนั้น (body/feet/leaf/belly/cheek/tongue) สีอื่นเพิ่มเพื่อให้อ่านง่ายบนจอเล็ก
 
@@ -50,8 +53,13 @@
 | `chubby` | 0.78 × **0.64** | 0.50 × 0.36 | 0.16 × 0.14 | 0.16 / 0.028 | กลมเกือบเป็นวงกลม |
 | `lean` | **0.56** × 0.62 | 0.26 × 0.30 | 0.12 × 0.22 (เรียวยาว) | 0.12 / 0.030 | ผอมสูง พุงเล็ก |
 | `muscle` | 0.60 × 0.60 | 0.30 × 0.28 | **0.25 × 0.27 อยู่หน้าตัว** มีเงาเสี้ยว + เส้นกล้าม + ไฮไลต์ | 0.20 / 0.036 | ต้นขาใหญ่เป็นกล้าม แขนเบ่งกล้าม (ท่า proud) |
+| `stuffed` (food รอบ 3) | 0.80 × 0.60 | **0.62 × 0.38 ต่ำลงจนเกือบแตะพื้น** มีเส้นขอบจาง + ไฮไลต์ขาว + สะดือจุด | 0.16 × 0.14 | 0.19 / 0.028 | "พุงกาง": ตัวช่วงล่างถูกขยายด้วยวงรีพุง (กว้าง × 1.06 สูง 0.36 ชิดพื้น) → ทรงลูกแพร์/ลูกบอล พุงตึงกลมเงา |
 
-ลำดับการวาด: เงาพื้น → ต้นขาหลัง → ตัว+ปุ่มตา → พุง → แขน → ต้นขา MUSCLE → เท้า → แก้ม → ตา/คิ้ว → ปาก/ลิ้น → ฟองน้ำลาย → ใบไม้ → เหงื่อ → ประกาย
+ข้อสังเกต `stuffed` ต่างจาก `fat` ชัด: FAT กว้างเต็มกรอบ เตี้ยแบน มีเส้นพุง**พับ** (อ้วน) ส่วน STUFFED กว้างพอดี ตัวสูงปกติ แต่พุงล่าง**ตึงกลมเงา** โป่งออกด้านข้าง (อิ่ม) — ยังคงกฎเดิม: FAT กว้างและเตี้ยสุด, LEAN ผอมสุด, CHUBBY สูงสุด, MUSCLE ต้นขาใหญ่สุด
+
+ลำดับการวาด: เงาพื้น → ต้นขาหลัง → ตัว+ปุ่มตา (+วงรีพุง STUFFED) → พุง (+ขอบ/ไฮไลต์ STUFFED) → แขน → ข้าวปั้น → มือ (ตอนกิน มือวาดทับข้าวปั้น) → ต้นขา MUSCLE → เท้า → แก้มป่อง (ตอนกิน) → แก้ม → ตา/คิ้ว → ปาก/ลิ้น → ฟองน้ำลาย → เม็ดข้าว / ควันเรอ → ใบไม้ → เหงื่อ → ประกาย
+
+ขนาดอุปกรณ์ food (`PetProportions`): ข้าวปั้นกว้าง `foodSize` 0.20 (สูง ×0.92) จุดกลางอยู่ใต้ปาก 0.135 ยกขึ้น 0.025 ตอนอ้าปากกัด · แก้มป่อง รัศมี `cheekPuffRadius` 0.058 ยื่นออกนอกขอบหน้า (ยุบ 30% ตอนอ้าปาก) · วงรีพุง `paunchWidthFactor` 1.06 / `paunchHeight` 0.36
 
 ## 4. สีหน้า (`PetExpression` = สีหน้าหลัก, `PetFace` = หน้าที่วาดจริงในเฟรมนั้น)
 
@@ -67,21 +75,27 @@
 | `blink` | ปิด (เส้นโค้ง ‿) | ปิด | คงปาก ใบไม้ แก้ม ตามสีหน้าเดิม (เปลี่ยนแค่ตา) | ตามสีหน้าเดิม (happy/content มี) | เกิดสุ่มทุก 1.8–5.0 วินาที นาน 180 ms |
 | `funny` (แตะตัว) | `>` | `<` | อ้าปากกลม ลิ้นยื่นยาวเฉียง | ไม่มี | แขนกางออก ตัวกระโดด (เหมือนรอบ 1) |
 | `cheer` (เพิ่มน้ำ/ก้าว) | `^` | `^` | ยิ้มอ้ากว้าง เห็นลิ้น | ไม่มี | ชูแขนสองข้าง กระโดด 2 ครั้ง ประกาย 5 ดวง ใบไม้โบก (เหมือนรอบ 1) |
+| `eating` (food รอบ 3) | 0 / **+0.24,+0.30** / 0.60 | **0.30** / **−0.22,+0.34** / 0.48 | ปาก "ω" เคี้ยว ↔ อ้าปากกัดเห็นลิ้น (ลูปเคี้ยว) | ไม่มี | **ตาเหล่เข้าหากันมองข้าวปั้น** (ตาดำสองข้างหันเข้าใน-ลง) · สองมือประคองข้าวปั้น (มีรอยกัด) ใต้ปาก แขนงอเป็นวงโอบ · **แก้มป่อง** ยื่นออกนอกหน้า · เม็ดข้าวกระเด็น 2 เม็ด · ใบไม้ผงกตามจังหวะเคี้ยว |
+| `full` (food รอบ 3) | **ปิด** (‿) lid 1.0 | **ปิด** (‿) lid 1.0 | ยิ้มกว้างปิด + ลิ้นเลียมุมปากซ้าย | ไม่มี | "อิ่มฟิน" หลับตาพริ้ม · มือแปะข้างพุง (ขยับตามหายใจ) · **ควันเรอ** 3 ก้อนที่มุมปากขวา · ใบไม้เอียงสบาย ๆ |
+| `overfed` (food รอบ 3) | **0.48** / +0.22,+0.36 / 0.56 | **0.58** / −0.20,+0.40 / 0.46 | ปาก "ω" ปลายตก (เคี้ยวฝืน ๆ) ↔ อ้าปากกัด | ไม่มี | ตาเหล่มองข้าวปั้นแต่**หนังตาหนักสองข้าง** · **คิ้วกังวล** (ปลายในยกขึ้น — กลับด้านกับ proud) · หยดเหงื่อ 1 หยด · ถือข้าวปั้น + แก้มป่อง + เม็ดข้าว · ใบไม้เอียงแบบ tired |
+
+หมายเหตุ food: `blink` ระหว่าง `eating`/`overfed` ยังถือข้าวปั้นและเคี้ยวต่อ (เปลี่ยนแค่ตา) · `full` ตาปิดอยู่แล้ว กะพริบไม่เปลี่ยนภาพ · ระหว่าง `funny`/`cheer` ข้าวปั้น แก้มป่อง เม็ดข้าว ควันเรอ ซ่อนทั้งหมด
 
 ### 4.1 ลุค "เอ๋อ" (derpy) — รอบ 2
 
 วางทับทุกสีหน้าที่ลืมตา (`happy/content/proud/tired/critical`) โดย **ไม่แตะรูปร่าง ท่าแขน ปาก ใบไม้ เหงื่อ ประกาย** ของแต่ละสถานะ (ค่าทั้งหมดอยู่ใน `PetDerpy` ใน `pet_constants.dart`)
 
-1. **ตาเหล่** — ตาดำสองข้างมองคนละทิศ (ซ้ายขึ้น-ออก, ขวาลง-ออก) และขนาดไม่เท่ากัน (ขวาเล็กกว่า ~0.8×) ตาดำและประกายถูกตัด (clip) ให้อยู่ในตาขาวเสมอ
+1. **ตาเหล่** — ตาดำสองข้างมองคนละทิศ (ซ้ายขึ้น-ออก, ขวาลง-ออก) และขนาดไม่เท่ากัน (ขวาเล็กกว่า ~0.8×) ตาดำและประกายถูกตัด (clip) ให้อยู่ในตาขาวเสมอ · ข้อยกเว้น (รอบ 3): `eating`/`overfed` ตาดำสองข้าง**หันเข้าหากัน-ลง**มองข้าวปั้นในมือ (ตาเหล่เข้า = ยังเอ๋อ แต่มีเป้าหมาย) ขนาดยังไม่เท่ากันตามเดิม
 2. **หนังตาตกข้างเดียว** — สีหน้าปกติ (`happy/content/proud`) มีหนังตาตกที่ **ตาขวาข้างเดียว** 0.24–0.38 (≤ `PetDerpy.halfLidMax` 0.40) ตาซ้ายเปิดเต็ม
    - เส้นหนังตาโค้งนูนขึ้นเล็กน้อย ปลายด้านนอกห้อยลง (`lidDroop` 0.012) และยื่นเลยขอบตาขาว (`lidOvershoot` 0.014) — ใช้กับทุกตาที่มีหนังตา (รวม tired/critical)
+   - `eating` ตกข้างเดียว 0.30 ตามกฎสถานะดี · `overfed` ตกสองข้าง ≥ 0.45 (0.48/0.58) ตามกฎ "ปรือสองข้าง" แต่**ต่างจาก tired** ที่ตาดำมองเข้าหาข้าวปั้น + คิ้วกังวล + ถือของกิน · `full` ปิดสองข้าง (lid 1.0 ≥ `closedLid` 0.92) → ไม่วาดตาเหล่
    - **กฎแยกสถานะ**: สถานะต่ำมีหนังตาตก **ทั้งสองข้าง** และทุกข้าง ≥ 0.45 (tired 0.45/0.55, critical 0.62/0.70) ส่วนสถานะดีตกข้างเดียว ≤ 0.38 → ที่ 160 px อ่านได้ทันที: "ปรือข้างเดียว = เอ๋อ", "ปรือสองข้าง + เหงื่อ = เหนื่อย", "ปรือมาก + ถุงใต้ตา + ตัวซีด = แย่"
 3. **ฟองน้ำลาย** — วงกลมฟ้าอ่อน `drool` ขอบ `droolOutline` + จุดไฮไลต์ขาว รัศมี `droolRadius` 0.028·s (ที่ 160 px ≈ 9 px) พองขึ้น +15% ตามการหายใจ
    - แสดงเฉพาะ `happy` (ใต้มุมปากขวาของรอยยิ้มรูป D) และ `content` (ข้างปลายลิ้น blep) — รวมตอนกะพริบตา
    - ไม่แสดงใน `proud` (MUSCLE ต้องดูมั่นใจ และมุมปากมีลิ้น+ลักยิ้มแน่นแล้ว), `tired`/`critical` (สีฟ้าในสถานะต่ำสงวนไว้ให้หยดเหงื่อ ไม่ให้สับสน และน้ำลายไหลตอนป่วยดูไม่น่ารัก), `funny`/`cheer` (เคลื่อนไหวเร็ว)
 4. ใบไม้บนหัว แก้มชมพู ลิ้นแลบ และนิสัยใจดีคงเดิม · `blink`/`funny`/`cheer` ไม่มีตาเหล่ (ตาปิด/สัญลักษณ์)
 
-ตัวตรวจในเทสต์ (getter ใหม่ของ `PetCharacterPainter`): `isDerpyEye` (วาดตาเหล่เฟรมนี้ = ไม่มี action และไม่กะพริบ), `hasHalfLidEye` (ตาตกข้างเดียว — happy/content/proud ขณะลืมตา), `showsDroolBubble` (happy/content เมื่อไม่มี action), `eyeSpecs` (ค่า `(PetEyeSpec ซ้าย, PetEyeSpec ขวา)` ของสีหน้า) · `hasDroopyEyes` ความหมายเดิม = ตาปรือสองข้างของสถานะต่ำ
+ตัวตรวจในเทสต์ (getter ของ `PetCharacterPainter`): `isDerpyEye` (วาดตาเหล่เฟรมนี้ = ไม่มี action, ไม่กะพริบ และสีหน้าไม่ได้ปิดตา — `full` = false), `hasHalfLidEye` (ตาตกข้างเดียว — happy/content/proud/eating ขณะลืมตา), `showsDroolBubble` (happy/content เมื่อไม่มี action), `eyeSpecs` (ค่า `(PetEyeSpec ซ้าย, PetEyeSpec ขวา)` ของสีหน้า) · `hasDroopyEyes` = ลืมตาแบบเอ๋อ และหนังตา**ทุกข้าง** ≥ `PetDerpy.droopyLidMin` 0.45 → true เฉพาะ tired / critical / overfed (รอบ 3 เขียนเป็นกฎจากค่าตา ผลกับ 7 preset เดิมเท่าเดิม)
 
 ## 5. ตารางสถานะ → ท่าทาง/สีหน้า (`PetPose` presets)
 
@@ -96,8 +110,14 @@
 | steps | CHUBBY `[35, 70)` % | `PetPose.stepsChubby` | `content` | `chubby` | `preview/steps_chubby.png` |
 | steps | LEAN `[70, 100)` % | `PetPose.stepsLean` | `happy` | `lean` | `preview/steps_lean.png` |
 | steps | MUSCLE `[100, ∞)` % | `PetPose.stepsMuscle` | `proud` + แขนเบ่งกล้าม | `muscle` | `preview/steps_muscle.png` |
+| food | `NORMAL` ท่าหิว/ปกติ | `PetPose.foodNormal` (**reuse** สีหน้า `content` + รูปร่าง `normal` — ไม่มีการวาดใหม่) | `content` (แลบลิ้น + ฟองน้ำลาย = "หิว อยากกิน" แต่ร่าเริง) | `normal` | `preview/food_normal.png` |
+| food | `EATING` ชั่วคราวหลังส่งเมนูสำเร็จ | `PetPose.foodEating` (ใหม่) | `eating` + ลูปเคี้ยว | `normal` | `preview/food_eating.png` |
+| food | `OVER_LIMIT` อิ่มพุงกาง | `PetPose.foodOverLimit` (ใหม่) | `full` | `stuffed` (ใหม่) | `preview/food_over_limit.png` |
+| food | `OVER_LIMIT_FEEDING` อิ่มพุงกางแต่ยังกิน (ชั่วคราว) | `PetPose.foodOverLimitFeeding` (ใหม่) | `overfed` + ลูปเคี้ยว | `stuffed` | `preview/food_over_limit_feeding.png` |
 
-ภาพรวมทุกสถานะที่ขนาดจริง 160 px: `preview/all_states_160.png` · เฟรมพิเศษ: `fx_blink.png`, `fx_jump_funny.png`, `fx_cheer.png`, `fx_breath_in.png`, `fx_critical_sweat.png`
+ภาพรวมทุกสถานะที่ขนาดจริง 160 px: `preview/all_states_160.png` (แถว 1 water happy/tired/critical + steps FAT · แถว 2 steps CHUBBY/LEAN/MUSCLE + food NORMAL · แถว 3 food EATING/OVER_LIMIT/OVER_LIMIT_FEEDING) · food 4 ท่าเรียงกัน: `preview/food_states_160.png` · เฟรมพิเศษ: `fx_blink.png`, `fx_jump_funny.png`, `fx_cheer.png`, `fx_breath_in.png`, `fx_critical_sweat.png`, `fx_food_chew_cycle.png` (แถวบน eating / แถวล่าง overfed ที่ chew 0, 0.25, 0.5)
+
+ความต่างที่ต้องรักษา (food): NORMAL vs EATING ต่างที่ **มือถือข้าวปั้น + แก้มป่อง + ตาเหล่เข้ามองของกิน + ปาก ω** (รูปร่างเท่ากันเพราะยังไม่เกินเป้า) · OVER_LIMIT และ OVER_LIMIT_FEEDING ต่างจากสองท่าแรกที่ **รูปร่าง stuffed พุงตึงกลม** ก่อน แล้ว OVER_LIMIT = หลับตาฟิน + มือแปะพุง + ควันเรอ (ไม่ถือของ) ส่วน OVER_LIMIT_FEEDING = ถือข้าวปั้นเคี้ยวต่อ + หนังตาหนักสองข้าง + คิ้วกังวล + เหงื่อ
 
 ความต่างที่ต้องรักษา: water 3 สถานะต่างกันที่ตา (ตกข้างเดียว+ฟองน้ำลาย / ตกสองข้าง / ตกมากสองข้าง+มองล่าง+ถุงใต้ตา) ปาก ใบไม้ (ตั้ง / เอียง / เหี่ยว) แขน (วางพุง / ห้อย) และเหงื่อ — ไม่ใช่แค่สี; steps 4 สถานะต่างกันที่ **รูปร่าง** ก่อน (กว้างแบน / กลม / ผอมสูง / ต้นขากล้าม+เบ่งแขน) แล้วจึงสีหน้า
 
@@ -110,8 +130,12 @@
 | แตะตัว → กระโดด + หน้าตลก | แตะที่กล่องของสัตว์เลี้ยง (`reactToTap`) | ย่อตัว → ลอย 0.10·s (ยืด) → ลงพื้นแล้วยุบ หน้า `funny` | `jump` 650 ms |
 | ดีใจ (cheer) | `cheerTrigger` เปลี่ยนค่า | กระโดดสั้น 2 ครั้ง 0.06·s ชูแขน หน้า `cheer` ประกาย | `cheer` 900 ms |
 | สถานะต่ำ | `tired` / `critical` | ตาปรือ (ค่าคงที่ของท่า) + หยดเหงื่อไหลลงตามจังหวะหายใจ + หายใจช้า | — |
+| เคี้ยว (food รอบ 3) | ตลอดเวลาที่ `pose.isEating` (`eating` / `overfed`) และ `animate: true` | `AnimationController` แยก (`repeat`) สร้างเมื่อ pose เป็นท่ากิน และ dispose ทันทีเมื่อเปลี่ยนเป็นท่าอื่น · `chewOpen = sin(π·chew)`: < 0.3 ปาก "ω" แก้มป่องเต็ม, ≥ 0.3 อ้าปากกัด แก้มยุบ 30% ข้าวปั้นยกขึ้นหาปาก เม็ดข้าวขยับ ใบไม้ผงก | `chew` 420 ms ต่อ 1 คำ |
+| อิ่ม (food รอบ 3) | `full` | ใช้ลมหายใจเดิม: มือตบพุงขึ้นลง ควันเรอลอยขึ้น ใบไม้แกว่ง | `breath` 2400 ms |
 
-ระหว่าง cheer แตะตัวจะไม่ขัดจังหวะ · เงาพื้นหดเมื่อลอย · `animate: false` = เฟรมนิ่ง (breath 0, ไม่มี blink/action) ไม่สร้าง controller หรือ Timer
+**ระยะเวลาของ `EATING` / `OVER_LIMIT_FEEDING` เป็นของฟีเจอร์** (`EATING_ANIMATION_DURATION` ใน docs/food/game-rules.md) — widget ไม่จับเวลาเอง: หน้าจอส่ง `PetPose.foodEating` / `foodOverLimitFeeding` ตลอดช่วงที่สถานะเป็นท่าชั่วคราว แล้วเปลี่ยน pose กลับเมื่อหมดเวลา (widget เคี้ยววนจนกว่า pose จะเปลี่ยน)
+
+ระหว่าง cheer แตะตัวจะไม่ขัดจังหวะ · เงาพื้นหดเมื่อลอย · `animate: false` = เฟรมนิ่ง (breath 0, chew 0, ไม่มี blink/action) ไม่สร้าง controller หรือ Timer — ท่ากินแบบนิ่งแสดงปาก "ω" + แก้มป่อง + ข้าวปั้นมีรอยกัด จึงอ่านออกว่ากำลังกินแม้ไม่ขยับ
 
 ## 7. วิธีใช้ widget
 
@@ -143,13 +167,13 @@ KeyedSubtree(
 API สาธารณะ (`app/lib/shared/pet/`):
 
 - `PetCharacter` (StatefulWidget) — พารามิเตอร์ตามด้านบน; `pose` จำเป็น
-- `PetPose(expression, body = normal)` — immutable มี `==`, `id` (เช่น `fat_tired`), `isLowState`, `copyWith`; presets `waterHappy/waterTired/waterCritical/stepsFat/stepsChubby/stepsLean/stepsMuscle`
-- `enum PetExpression { happy, content, proud, tired, critical }` (ตั้งชื่อเลี่ยง `PetMood` ของ water)
-- `enum PetBodyShape { normal, fat, chubby, lean, muscle }`
-- `enum PetAction { none, jump, cheer }`
-- `enum PetFace { happy, content, proud, tired, critical, blink, funny, cheer }`
-- `PetCharacterPainter` (CustomPainter) — ฟิลด์ `pose, breath, blink, action, actionProgress, animated`; getter `expression, bodyShape, bodySpec, face, isBlinking, isJumping, isCheering, showsSweat, hasDroopyEyes, showsSparkles` + (รอบ 2) `isDerpyEye, hasHalfLidEye, showsDroolBubble, eyeSpecs`
-- `PetColors`, `PetProportions`, `PetBodySpec`, `PetTiming`, `PetKeys` + (รอบ 2) `PetDerpy`, `PetEyeSpec`
+- `PetPose(expression, body = normal)` — immutable มี `==`, `id` (เช่น `fat_tired`, `stuffed_full`), `isLowState`, `isEating` (รอบ 3), `copyWith`; presets `waterHappy/waterTired/waterCritical/stepsFat/stepsChubby/stepsLean/stepsMuscle` + (รอบ 3) `foodNormal/foodEating/foodOverLimit/foodOverLimitFeeding`
+- `enum PetExpression { happy, content, proud, tired, critical, eating, full, overfed }` (ตั้งชื่อเลี่ยง `PetMood` ของ water)
+- `enum PetBodyShape { normal, fat, chubby, lean, muscle, stuffed }`
+- `enum PetAction { none, jump, cheer }` (ไม่เปลี่ยน — EATING เป็น pose ไม่ใช่ action)
+- `enum PetFace { happy, content, proud, tired, critical, blink, funny, cheer, eating, full, overfed }`
+- `PetCharacterPainter` (CustomPainter) — ฟิลด์ `pose, breath, blink, action, actionProgress, animated` + (รอบ 3) `chew`; getter `expression, bodyShape, bodySpec, face, isBlinking, isJumping, isCheering, showsSweat, hasDroopyEyes, showsSparkles` + (รอบ 2) `isDerpyEye, hasHalfLidEye, showsDroolBubble, eyeSpecs` + (รอบ 3) `showsFood, showsPuffedCheeks, showsBurpPuff, showsWorriedBrows, chewOpen`
+- `PetColors`, `PetProportions`, `PetBodySpec` (+ `bellyBulge`), `PetTiming` (+ `chew`), `PetKeys` + (รอบ 2) `PetDerpy` (+ รอบ 3 `closedLid`, `droopyLidMin`), `PetEyeSpec`
 
 `cheerTrigger`: เล่น cheer ทุกครั้งที่ค่า **เปลี่ยน** (ไม่ใช่แค่เพิ่ม) — ฟีเจอร์ควรเก็บตัวนับใน state/controller ให้คงที่ข้าม rebuild
 
@@ -159,7 +183,7 @@ API สาธารณะ (`app/lib/shared/pet/`):
 |---|---|
 | `PetKeys.character` = `ValueKey('pet_character')` | `GestureDetector` รากของสัตว์เลี้ยง (ใช้ `tester.tap`) |
 | `PetKeys.painter` = `ValueKey('pet_painter')` | `CustomPaint` ที่ `painter` เป็น `PetCharacterPainter` |
-| key ฟีเจอร์ `water_pet_image_<mood>` / `steps_pet_image_<status>` | `KeyedSubtree` ที่หน้าจอห่อ `PetCharacter` ไว้ (ไม่ใช่ตัว `PetCharacter`) |
+| key ฟีเจอร์ `water_pet_image_<mood>` / `steps_pet_image_<status>` / (เสนอ) `food_pet_image_<state>` | `KeyedSubtree` ที่หน้าจอห่อ `PetCharacter` ไว้ (ไม่ใช่ตัว `PetCharacter`) — ชื่อ key ของ food ให้ Dev/QA ตัดสิน |
 | `GlobalKey` ใน State ของหน้าจอ (เช่น `debugLabel: 'water_pet'`) | ตัว `PetCharacter` — คงที่ข้ามการเปลี่ยนสถานะ (ไม่ใช่ key สำหรับค้นในเทสต์) |
 
 ```dart
@@ -177,6 +201,18 @@ expect(painter.showsDroolBubble, isFalse);  // proud ไม่มีฟองน
 - `animate: false` → ไม่มี ticker, `pumpAndSettle()` ใช้ได้; แตะ/cheer ไม่เล่นอนิเมชัน (แต่ `onTap` ยังถูกเรียก)
 - `animate: true` → หายใจตลอด **ห้ามใช้ `pumpAndSettle()`** (จะ timeout) ให้ใช้ `pump(Duration)`; แตะแล้ว `pump(200ms)` → `isJumping == true`, `face == PetFace.funny`; รอเกิน 650 ms หลังเฟรมแรก → `action == PetAction.none`; เปลี่ยน `cheerTrigger` แล้ว `pump(100ms)` → `isCheering == true`
 - กะพริบตาสุ่มด้วย `random` — ส่ง `Random(seed)` เพื่อให้ผลซ้ำได้; Timer ถูกยกเลิกตอน dispose ไม่ค้างหลังเทสต์
+- food (รอบ 3): `animate: false` + `PetPose.foodEating` → `face == PetFace.eating`, `showsFood`, `showsPuffedCheeks`, `hasHalfLidEye` เป็น true, `chew == 0`, ไม่มี ticker · `foodOverLimitFeeding` → `face == PetFace.overfed`; `showsFood`, `showsSweat`, `hasDroopyEyes`, `showsWorriedBrows` เป็น true · `foodOverLimit` → `face == PetFace.full`, `bodyShape == PetBodyShape.stuffed`, `showsBurpPuff == true`, `isDerpyEye == false`, `showsFood == false` · `foodNormal` → `face == PetFace.content`, `showsDroolBubble == true` · `animate: true` + ท่ากิน แล้ว `pump(100ms)` → `chew > 0`; เปลี่ยนเป็นท่าไม่กิน → `chew == 0`
+
+```dart
+// food — สถานะ game-rules §2 → pose (ตัวอย่างฝั่ง Dev; ชื่อ enum ฝั่งฟีเจอร์เป็นของ Dev)
+PetPose foodPose(FoodPetState s) => switch (s) {
+      FoodPetState.normal => PetPose.foodNormal,
+      FoodPetState.eating => PetPose.foodEating,
+      FoodPetState.overLimit => PetPose.foodOverLimit,
+      FoodPetState.overLimitFeeding => PetPose.foodOverLimitFeeding,
+    };
+// ไม่ต้องเพิ่ม cheerTrigger ตอนบันทึกอาหาร — ท่ากินคือ reaction อยู่แล้ว (cheer จะทับหน้า eating)
+```
 
 ## 8. กฎการแก้ไขตัวละคร
 
@@ -190,3 +226,6 @@ expect(painter.showsDroolBubble, isFalse);  // proud ไม่มีฟองน
 2. (ปิดแล้ว — owner ตัดสิน 2026-10-14 ตามคอมเมนต์ใน water_home_screen.dart) water เลิกใช้ PNG ใช้ `PetCharacter` ตัวเดียว
 3. (decided by owner 2026-10-14: คง FAT เป็นหน้าเหนื่อย `tired`) steps FAT ใช้สีหน้า `tired` (เหงื่อ ตาปรือสองข้าง) เพื่อสื่อ "อ้วนอืด" — ถ้า Product อยากให้ FAT ดูร่าเริงกว่านี้ เปลี่ยนเป็น `content` ได้โดยแก้ preset เดียว (จะได้ตาตกข้างเดียว + ฟองน้ำลายแทน)
 4. (รอบ 2) ภาพแรงบันดาลใจมีหน้า "พูด" (อ้าปากกลม) — ยังไม่มีสถานะไหนในเกมต้องใช้ จึงไม่ได้เพิ่ม ถ้าฟีเจอร์ใหม่ต้องการ แจ้ง Art เพื่อเพิ่ม `PetFace`
+5. (DECIDED — owner ชั่วคราว 2026-10-30, รอทีมยืนยัน) food OQ-1: ไม่ใช้ Lottie และไม่ใช้ Sprite Sheets — 4 ท่าของ food วาดใน `PetCharacter` (CustomPainter) ตามข้อตกลง owner 2026-10-14 ที่ให้ทั้งแอปใช้สัตว์เลี้ยงตัวเดียว ใช้แทน requirements.md ข้อ 7 และ asset `assets/images/pet/*.json` / fallback PNG ใน ux-flow.md / game-rules.md
+6. (รอบ 3 เปิด) food `NORMAL` ชื่อ "ท่าหิว / ท่าปกติ" แต่ครอบคลุมตั้งแต่ 0 kcal จนเกินเป้า 100 kcal — Art ใช้ `content` (หิวแต่ร่าเริง) ตลอดช่วง ถ้า Product อยากให้ "หิว" ชัดขึ้นตอนกินน้อย ต้องเพิ่มสถานะใน game-rules ก่อน (Art ไม่แบ่งช่วงเอง)
+7. (รอบ 3 เปิด) food: บันทึกซ้อนระหว่าง `EATING` 2 วินาที (EC-2) ควรเริ่มนับใหม่หรือไม่ และหลัง `OVER_LIMIT_FEEDING` ควรค้างนานเท่าไร (game-rules ไม่ระบุเวลา) — เป็นกติกาของ game-rules; widget แค่เคี้ยววนตราบที่ pose ยังเป็นท่ากิน

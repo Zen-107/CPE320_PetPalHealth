@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:petpal_health/shared/pet/pet.dart';
 
+import '../../food/food_controller.dart';
+import '../../food/food_repository.dart';
+import '../../food/food_rules.dart';
+import '../../food/screens/food_dashboard_screen.dart';
 import '../../signup/signup_rules.dart';
 import '../../steps/screens/steps_dashboard_screen.dart';
 import '../../steps/steps_controller.dart';
@@ -22,6 +26,7 @@ class WaterHomeScreen extends StatefulWidget {
     super.key,
     required this.controller,
     this.stepsController,
+    this.foodController,
     this.animatePet,
     this.welcomeName,
   });
@@ -34,6 +39,9 @@ class WaterHomeScreen extends StatefulWidget {
 
   /// ทางเข้าฟีเจอร์ steps (docs/steps/ui-spec.md §2.0) — null = สร้างเองเมื่อกดปุ่มครั้งแรก
   final StepsController? stepsController;
+
+  /// ทางเข้าฟีเจอร์ food (docs/food/ui-spec.md §2.0, D-2) — null = สร้างเองเมื่อกดปุ่มครั้งแรก
+  final FoodController? foodController;
 
   /// signup S-7 แบนเนอร์ต้อนรับ (docs/signup/ui-spec.md §2.7) — Display Name ที่
   /// ประมวลผลแล้ว (AC-5); null = ไม่แสดงแบนเนอร์ (พฤติกรรมเดิมของ water)
@@ -52,6 +60,7 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
   final GlobalKey _petKey = GlobalKey(debugLabel: 'water_pet');
   Timer? _resetTimer;
   StepsController? _ownedStepsController;
+  FoodController? _ownedFoodController;
 
   // ASSUMPTION: ตรวจรีเซ็ต 05:00 น. ทุก 1 นาทีระหว่างเปิดแอปค้างไว้
   // (AC-5 กำหนดเฉพาะตอนเปิดแอป ส่วนนี้ทำให้หน้าจอรีเซ็ตเองแม้แอปเปิดค้างข้าม 05:00 น.)
@@ -78,6 +87,7 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
   void dispose() {
     _resetTimer?.cancel();
     _ownedStepsController?.dispose();
+    _ownedFoodController?.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -133,6 +143,21 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
     );
   }
 
+  /// เปิด S-1 ของ food (docs/food/ui-spec.md §2.0, D-2)
+  // ASSUMPTION: ไม่ได้ inject FoodController (เช่น เทสต์ที่ไม่มี signup) → โปรไฟล์อยู่ใน
+  // หน่วยความจำ (InMemoryFoodProfileSource) ข้อมูลอาหารยังเก็บด้วย shared_preferences
+  void _openFood() {
+    final food = widget.foodController ??
+        (_ownedFoodController ??= FoodController(
+          repository: SharedPrefsFoodRepository(),
+        ));
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => FoodDashboardScreen(controller: food),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -146,6 +171,13 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
             onPressed: _openSteps,
             icon: const Icon(Icons.directions_walk, size: 24),
             tooltip: StepsRules.entryButtonText,
+          ),
+          // food ui-spec §2.0: ต่อจาก steps_entry_button ก่อน water_monthly_report_button
+          IconButton(
+            key: const Key('food_entry_button'),
+            onPressed: _openFood,
+            icon: const Icon(Icons.restaurant, size: 24),
+            tooltip: FoodRules.entryTooltip,
           ),
           TextButton.icon(
             key: const Key('water_monthly_report_button'),
