@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:petpal_health/shared/pet/pet.dart';
 
+import '../../signup/signup_rules.dart';
 import '../../steps/screens/steps_dashboard_screen.dart';
 import '../../steps/steps_controller.dart';
 import '../../steps/steps_external.dart';
@@ -22,6 +23,7 @@ class WaterHomeScreen extends StatefulWidget {
     required this.controller,
     this.stepsController,
     this.animatePet,
+    this.welcomeName,
   });
 
   final WaterController controller;
@@ -32,6 +34,10 @@ class WaterHomeScreen extends StatefulWidget {
 
   /// ทางเข้าฟีเจอร์ steps (docs/steps/ui-spec.md §2.0) — null = สร้างเองเมื่อกดปุ่มครั้งแรก
   final StepsController? stepsController;
+
+  /// signup S-7 แบนเนอร์ต้อนรับ (docs/signup/ui-spec.md §2.7) — Display Name ที่
+  /// ประมวลผลแล้ว (AC-5); null = ไม่แสดงแบนเนอร์ (พฤติกรรมเดิมของ water)
+  final String? welcomeName;
 
   @override
   State<WaterHomeScreen> createState() => _WaterHomeScreenState();
@@ -175,6 +181,16 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // signup S-7 แบนเนอร์ต้อนรับ (signup ui-spec §2.7) — แสดงเมื่อได้รับชื่อเท่านั้น
+            if (widget.welcomeName != null)
+              Text(
+                SignupRules.homeWelcomeText(widget.welcomeName!),
+                key: const Key('signup_home_welcome_text'),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium,
+              ),
             const Spacer(),
             // Pet Avatar / Status (AC-2)
             Center(
