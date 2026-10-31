@@ -23,10 +23,23 @@ enum PetExpression {
   /// Very droopy eyes looking down, wobbly mouth, limp tongue, wilted
   /// leaf, pale body, 2 sweat drops, slower breath. (water critical)
   critical,
+
+  /// Holds a rice ball, cross-eyed at the food, puffed chewing cheeks,
+  /// "ω" munching mouth, crumbs. (food EATING)
+  eating,
+
+  /// Food coma: blissful closed eyes, satisfied smile licking the lips,
+  /// hands patting the belly, burp puff. (food OVER_LIMIT)
+  full,
+
+  /// Still eating while stuffed: heavy lids on both eyes cross-eyed at the
+  /// food, worried brows, puffed cheeks, sweat drop. (food OVER_LIMIT_FEEDING)
+  overfed,
 }
 
 /// Body shape (character.md §3). Water always uses [normal].
-enum PetBodyShape { normal, fat, chubby, lean, muscle }
+/// [stuffed] = round bulging "พุงกาง" belly (food OVER_LIMIT*).
+enum PetBodyShape { normal, fat, chubby, lean, muscle, stuffed }
 
 /// One-shot reaction currently playing.
 enum PetAction {
@@ -40,7 +53,19 @@ enum PetAction {
 }
 
 /// The face actually drawn this frame (expression + blink/action overrides).
-enum PetFace { happy, content, proud, tired, critical, blink, funny, cheer }
+enum PetFace {
+  happy,
+  content,
+  proud,
+  tired,
+  critical,
+  blink,
+  funny,
+  cheer,
+  eating,
+  full,
+  overfed,
+}
 
 /// Expression + body shape. Use the static presets for each feature state.
 @immutable
@@ -80,6 +105,28 @@ class PetPose {
   /// 100 % and up.
   static const PetPose stepsMuscle =
       PetPose(expression: PetExpression.proud, body: PetBodyShape.muscle);
+
+  // food — docs/food/game-rules.md §2
+  /// `NORMAL` (hungry / normal): reuses the existing content face
+  /// (blep tongue + drool bubble reads as "hungry") on the normal body.
+  static const PetPose foodNormal =
+      PetPose(expression: PetExpression.content);
+
+  /// `EATING` (transient, shown while the feature is in EATING).
+  static const PetPose foodEating = PetPose(expression: PetExpression.eating);
+
+  /// `OVER_LIMIT` (อิ่มพุงกาง).
+  static const PetPose foodOverLimit =
+      PetPose(expression: PetExpression.full, body: PetBodyShape.stuffed);
+
+  /// `OVER_LIMIT_FEEDING` (อิ่มพุงกางแต่ยังกิน, transient).
+  static const PetPose foodOverLimitFeeding =
+      PetPose(expression: PetExpression.overfed, body: PetBodyShape.stuffed);
+
+  /// Eating faces hold food and chew (the widget runs a chew loop).
+  bool get isEating =>
+      expression == PetExpression.eating ||
+      expression == PetExpression.overfed;
 
   /// Low states show sweat drops, droopy eyes and breathe slower.
   bool get isLowState =>

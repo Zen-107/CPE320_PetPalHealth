@@ -53,7 +53,8 @@ class PetCharacter extends StatefulWidget {
   });
 
   /// Expression + body shape. Use the presets, e.g. [PetPose.waterTired],
-  /// [PetPose.stepsMuscle].
+  /// [PetPose.stepsMuscle], [PetPose.foodEating]. Eating poses
+  /// ([PetPose.isEating]) also run a chew loop while animating.
   final PetPose pose;
 
   /// Side of the square box in logical px (screens use 160).
@@ -87,6 +88,7 @@ class _PetCharacterState extends State<PetCharacter>
   AnimationController? _breath;
   AnimationController? _blink;
   AnimationController? _action;
+  AnimationController? _chew; // only while the pose is eating
   Timer? _blinkTimer;
   PetAction _currentAction = PetAction.none;
   late math.Random _random;
@@ -112,6 +114,9 @@ class _PetCharacterState extends State<PetCharacter>
         ..duration = _breathDuration
         ..repeat(reverse: true);
     }
+    if (widget.animate && widget.pose.isEating != oldWidget.pose.isEating) {
+      _syncChew();
+    }
     if (widget.cheerTrigger != oldWidget.cheerTrigger) {
       _play(PetAction.cheer);
     }
@@ -131,6 +136,19 @@ class _PetCharacterState extends State<PetCharacter>
         }
       });
     _scheduleBlink();
+    _syncChew();
+  }
+
+  /// Chew loop runs only while the pose is an eating face (food EATING /
+  /// OVER_LIMIT_FEEDING) — no extra ticker in the other states.
+  void _syncChew() {
+    if (widget.pose.isEating) {
+      _chew ??= AnimationController(vsync: this, duration: PetTiming.chew)
+        ..repeat();
+    } else {
+      _chew?.dispose();
+      _chew = null;
+    }
   }
 
   void _stop() {
@@ -139,7 +157,8 @@ class _PetCharacterState extends State<PetCharacter>
     _breath?.dispose();
     _blink?.dispose();
     _action?.dispose();
-    _breath = _blink = _action = null;
+    _chew?.dispose();
+    _breath = _blink = _action = _chew = null;
     _currentAction = PetAction.none;
   }
 
@@ -194,6 +213,7 @@ class _PetCharacterState extends State<PetCharacter>
       action: action,
       actionProgress: action == PetAction.none ? 0 : _action!.value,
       animated: widget.animate,
+      chew: _chew?.value ?? 0,
     );
   }
 
@@ -206,7 +226,7 @@ class _PetCharacterState extends State<PetCharacter>
           painter: _painter(),
         );
 
-    final listenables = <Listenable>[?_breath, ?_blink, ?_action];
+    final listenables = <Listenable>[?_breath, ?_blink, ?_action, ?_chew];
     final Widget child = listenables.isEmpty
         ? paint()
         : AnimatedBuilder(

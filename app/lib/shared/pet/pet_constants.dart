@@ -64,6 +64,15 @@ abstract final class PetColors {
 
   /// Drool bubble rim.
   static const Color droolOutline = Color(0xFF86C3E3);
+
+  /// Rice ball the frog eats (food EATING / OVER_LIMIT_FEEDING) + crumbs.
+  static const Color rice = Color(0xFFFFFCF2);
+
+  /// Seaweed band on the rice ball.
+  static const Color nori = Color(0xFF34473A);
+
+  /// Burp puff (food OVER_LIMIT).
+  static const Color burp = Color(0xFFF2F6EE);
 }
 
 /// One eye of the derpy look (character.md §4.1). Values are fractions of
@@ -117,7 +126,30 @@ abstract final class PetDerpy {
       PetEyeSpec(lid: 0.62, pupilDx: -0.10, pupilDy: 0.45, pupil: 0.48),
       PetEyeSpec(lid: 0.70, pupilDx: 0.14, pupilDy: 0.50, pupil: 0.42),
     ),
+    // food: both pupils turn IN and DOWN = cross-eyed at the rice ball
+    PetExpression.eating: (
+      PetEyeSpec(lid: 0.0, pupilDx: 0.24, pupilDy: 0.30, pupil: 0.60),
+      PetEyeSpec(lid: 0.30, pupilDx: -0.22, pupilDy: 0.34, pupil: 0.48),
+    ),
+    // food coma: both lids shut (drawn as closed "‿" eyes, no derpy pupils)
+    PetExpression.full: (
+      PetEyeSpec(lid: 1.0, pupilDx: 0.0, pupilDy: 0.0, pupil: 0.0),
+      PetEyeSpec(lid: 1.0, pupilDx: 0.0, pupilDy: 0.0, pupil: 0.0),
+    ),
+    // stuffed but still eating: heavy lids on BOTH eyes (>= 0.45, like the
+    // low states) + cross-eyed at the food
+    PetExpression.overfed: (
+      PetEyeSpec(lid: 0.48, pupilDx: 0.22, pupilDy: 0.36, pupil: 0.56),
+      PetEyeSpec(lid: 0.58, pupilDx: -0.20, pupilDy: 0.40, pupil: 0.46),
+    ),
   };
+
+  /// Lid at or above this = the eye is drawn closed.
+  static const double closedLid = 0.92;
+
+  /// Every lid at or above this on an open-eye face = heavy, droopy eyes
+  /// (tired / critical / overfed) — never reached by the single half-lid.
+  static const double droopyLidMin = 0.45;
 
   /// Lid at or below this on a non-low face = the derpy single half-lid.
   static const double halfLidMax = 0.40;
@@ -154,6 +186,7 @@ class PetBodySpec {
     required this.toeRadius,
     this.muscle = false,
     this.bellyRoll = false,
+    this.bellyBulge = false,
   });
 
   /// Body (head+torso blob) width.
@@ -181,6 +214,10 @@ class PetBodySpec {
 
   /// Belly roll line (FAT only).
   final bool bellyRoll;
+
+  /// Round taut belly bulging out of the lower body, outlined + shine
+  /// (STUFFED only, food OVER_LIMIT*).
+  final bool bellyBulge;
 }
 
 abstract final class PetProportions {
@@ -263,7 +300,29 @@ abstract final class PetProportions {
       toeRadius: 0.036,
       muscle: true,
     ),
+    PetBodyShape.stuffed: PetBodySpec(
+      width: 0.80,
+      height: 0.60,
+      bellyWidth: 0.62,
+      bellyHeight: 0.38,
+      thighWidth: 0.16,
+      thighHeight: 0.14,
+      footSpread: 0.19,
+      toeRadius: 0.028,
+      bellyBulge: true,
+    ),
   };
+
+  /// STUFFED: the lower body is widened by a paunch oval of
+  /// (width × this, [paunchHeight]) so the silhouette becomes pear / ball.
+  static const double paunchWidthFactor = 1.06;
+  static const double paunchHeight = 0.36;
+
+  /// Rice ball (food) width; height = width × 0.92.
+  static const double foodSize = 0.20;
+
+  /// Puffed chewing cheek bulge radius.
+  static const double cheekPuffRadius = 0.058;
 }
 
 /// Animation timings (character.md §6).
@@ -286,6 +345,10 @@ abstract final class PetTiming {
 
   /// Cheer (water / steps added).
   static const Duration cheer = Duration(milliseconds: 900);
+
+  /// One chomp of the chew loop (food eating faces, repeats while the pose
+  /// is eating). How long EATING lasts is the feature's rule, not the pet's.
+  static const Duration chew = Duration(milliseconds: 420);
 }
 
 /// Predictable keys for tests (character.md §7).

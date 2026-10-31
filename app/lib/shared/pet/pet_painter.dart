@@ -20,6 +20,7 @@ class PetCharacterPainter extends CustomPainter {
     this.action = PetAction.none,
     this.actionProgress = 0,
     this.animated = false,
+    this.chew = 0,
   });
 
   /// Expression + body shape.
@@ -40,6 +41,10 @@ class PetCharacterPainter extends CustomPainter {
   /// Whether the owning widget is animating (false = static frame).
   final bool animated;
 
+  /// Chew-loop phase 0..1 of the eating faces (0 = static frame: mouth
+  /// closed "ω", cheeks fully puffed). See [chewOpen].
+  final double chew;
+
   // ---------------------------------------------------------------- getters
   PetExpression get expression => pose.expression;
   PetBodyShape get bodyShape => pose.body;
@@ -51,16 +56,47 @@ class PetCharacterPainter extends CustomPainter {
   /// Eyes are (almost) fully closed by a blink this frame.
   bool get isBlinking => action == PetAction.none && blink >= 0.5;
 
-  /// Sweat drops are drawn (low states: tired / critical).
-  bool get showsSweat => pose.isLowState;
+  /// Sweat drops are drawn (low states tired / critical, and overfed).
+  bool get showsSweat =>
+      pose.isLowState || expression == PetExpression.overfed;
 
-  /// Half-closed droopy eyes are drawn this frame.
-  bool get hasDroopyEyes =>
-      pose.isLowState && face != PetFace.blink && action == PetAction.none;
+  /// Both eyes are open but heavy-lidded (every lid >=
+  /// [PetDerpy.droopyLidMin]) this frame: tired, critical, overfed.
+  bool get hasDroopyEyes {
+    if (!isDerpyEye) return false;
+    final (l, r) = eyeSpecs;
+    return math.min(l.lid, r.lid) >= PetDerpy.droopyLidMin;
+  }
 
   /// The derpy open eyes (cross-eyed pupils of different sizes, character.md
-  /// §4.1) are drawn this frame — any mood face, not blink / funny / cheer.
-  bool get isDerpyEye => action == PetAction.none && face != PetFace.blink;
+  /// §4.1) are drawn this frame — any open-eye mood face, not blink / funny /
+  /// cheer, and not the closed food-coma eyes of `full`.
+  bool get isDerpyEye =>
+      action == PetAction.none && face != PetFace.blink && !_eyesShut;
+
+  /// The expression itself keeps both eyes shut (`full`).
+  bool get _eyesShut {
+    final (l, r) = eyeSpecs;
+    return l.lid >= PetDerpy.closedLid && r.lid >= PetDerpy.closedLid;
+  }
+
+  /// Rice ball held in both hands (eating / overfed; kept while blinking,
+  /// hidden during jump / cheer).
+  bool get showsFood => action == PetAction.none && pose.isEating;
+
+  /// Hamster-like puffed chewing cheeks bulge out of the face.
+  bool get showsPuffedCheeks => showsFood;
+
+  /// Little burp puff next to the mouth (full).
+  bool get showsBurpPuff =>
+      action == PetAction.none && expression == PetExpression.full;
+
+  /// Worried brows (inner ends up) — overfed.
+  bool get showsWorriedBrows =>
+      isDerpyEye && expression == PetExpression.overfed;
+
+  /// How open the chewing mouth is 0 (closed "ω") .. 1 (open bite).
+  double get chewOpen => math.sin(math.pi * chew.clamp(0.0, 1.0));
 
   /// Left / right eye spec of the current expression (character.md §4.1).
   (PetEyeSpec, PetEyeSpec) get eyeSpecs => PetDerpy.eyes[expression]!;
@@ -112,6 +148,9 @@ class PetCharacterPainter extends CustomPainter {
       PetExpression.proud => PetFace.proud,
       PetExpression.tired => PetFace.tired,
       PetExpression.critical => PetFace.critical,
+      PetExpression.eating => PetFace.eating,
+      PetExpression.full => PetFace.full,
+      PetExpression.overfed => PetFace.overfed,
     };
   }
 
@@ -207,7 +246,7 @@ class PetCharacterPainter extends CustomPainter {
 
     // 2. leaf stem goes behind the head
     // 3. body blob (head+torso) with eye bumps
-    final bodyPath = Path.combine(
+    var bodyPath = Path.combine(
       PathOperation.union,
       Path()
         ..addRRect(RRect.fromLTRBAndCorners(
@@ -226,16 +265,34 @@ class PetCharacterPainter extends CustomPainter {
         ..addOval(Rect.fromCircle(
             center: g.rightEye, radius: PetProportions.bumpRadius)),
     );
+    // STUFFED: a paunch oval widens the lower body (pear / ball silhouette)
+    if (spec.bellyBulge) {
+      bodyPath = Path.combine(
+        PathOperation.union,
+        bodyPath,
+        Path()
+          ..addOval(Rect.fromCenter(
+            center: Offset(g.cx, g.bottom - PetProportions.paunchHeight / 2),
+            width: g.w * PetProportions.paunchWidthFactor,
+            height: PetProportions.paunchHeight,
+          )),
+      );
+    }
     canvas.drawPath(bodyPath, bodyFill);
     canvas.drawPath(bodyPath, stroke);
 
-    // 4. belly
+    // 4. belly (STUFFED: lower, bulging, outlined)
     final bellyRect = Rect.fromCenter(
-      center: Offset(g.cx, g.bottom - spec.bellyHeight / 2 - 0.025),
+      center: Offset(
+          g.cx,
+          g.bottom -
+              spec.bellyHeight / 2 +
+              (spec.bellyBulge ? 0.005 : -0.025)),
       width: spec.bellyWidth,
       height: spec.bellyHeight,
     );
     canvas.drawOval(bellyRect, Paint()..color = PetColors.belly);
+    if (spec.bellyBulge) _paintBellyBulge(canvas, bellyRect);
     if (spec.bellyRoll) {
       final y = bellyRect.center.dy + spec.bellyHeight * 0.12;
       final hw = spec.bellyWidth * 0.36;
@@ -256,8 +313,14 @@ class PetCharacterPainter extends CustomPainter {
       );
     }
 
-    // 7. arms
-    _paintArms(canvas, g);
+    // 7. arms (eating: arms -> rice ball -> hands on top of the ball)
+    final hands = _paintArms(canvas, g, hands: !showsFood);
+    if (showsFood) {
+      _paintFood(canvas, g);
+      for (final h in hands) {
+        _paintHand(canvas, h);
+      }
+    }
 
     // 7b. muscular haunches in front of everything below the face (MUSCLE)
     if (spec.muscle) _paintMuscleThighs(canvas, g, spec, bodyFill, stroke);
@@ -268,7 +331,8 @@ class PetCharacterPainter extends CustomPainter {
           spec.toeRadius);
     }
 
-    // 8. cheeks
+    // 8. cheeks (eating: puffed bulges first, blush sits on the bulge)
+    final puffs = showsPuffedCheeks ? _paintCheekPuffs(canvas, g) : null;
     final cheekAlpha = switch (expression) {
       PetExpression.critical => 0.30,
       PetExpression.tired => 0.55,
@@ -282,7 +346,9 @@ class PetCharacterPainter extends CustomPainter {
     for (final side in const [-1.0, 1.0]) {
       canvas.drawOval(
         Rect.fromCenter(
-          center: Offset(g.cx + side * (g.eyeOff + 0.045), g.eyeY + 0.125),
+          center: puffs != null
+              ? puffs[side < 0 ? 0 : 1].translate(-side * 0.012, -0.004)
+              : Offset(g.cx + side * (g.eyeOff + 0.045), g.eyeY + 0.125),
           width: 0.085,
           height: 0.05,
         ),
@@ -298,6 +364,10 @@ class PetCharacterPainter extends CustomPainter {
 
     // 10b. drool bubble (derpy, happy / content)
     if (showsDroolBubble) _paintDrool(canvas, g);
+
+    // 10c. crumbs (eating / overfed) and burp puff (full)
+    if (showsFood) _paintCrumbs(canvas, g);
+    if (showsBurpPuff) _paintBurp(canvas, g);
 
     // 11. leaf on the head
     _paintLeaf(canvas, g);
@@ -372,8 +442,12 @@ class PetCharacterPainter extends CustomPainter {
     canvas.drawPath(foot, _stroke(PetProportions.stroke * 0.85));
   }
 
-  void _paintArms(Canvas canvas, _Geo g) {
+  /// Draws both arms; returns the hand centres (left, right). With
+  /// [hands] false the hands are left to the caller (eating: drawn on top
+  /// of the rice ball).
+  List<Offset> _paintArms(Canvas canvas, _Geo g, {bool hands = true}) {
     const thick = 0.055;
+    final out = <Offset>[];
     for (final side in const [-1.0, 1.0]) {
       final shoulder =
           Offset(g.cx + side * (g.w / 2 - 0.075), g.top + g.h * 0.55);
@@ -391,6 +465,20 @@ class PetCharacterPainter extends CustomPainter {
         joints = [
           Offset(g.cx + side * (g.w / 2 + 0.05), g.top + g.h * 0.56),
           Offset(g.cx + side * (g.w / 2 + 0.06), g.top + g.h * 0.30),
+        ];
+      } else if (showsFood) {
+        // both hands hold the rice ball under the mouth
+        final f = _foodCenter(g);
+        joints = [
+          Offset(g.cx + side * (g.w / 2 - 0.11), g.top + g.h * 0.76),
+          Offset(f.dx + side * PetProportions.foodSize * 0.40,
+              f.dy + PetProportions.foodSize * 0.12),
+        ];
+      } else if (expression == PetExpression.full) {
+        // patting the round belly
+        joints = [
+          Offset(g.cx + side * (g.w / 2 - 0.09),
+              g.top + g.h * 0.70 + 0.008 * breath),
         ];
       } else if (pose.isLowState) {
         joints = [
@@ -417,10 +505,137 @@ class PetCharacterPainter extends CustomPainter {
       canvas.drawPath(line([emerge, ...pts.skip(1)]),
           _stroke(thick + PetProportions.stroke * 2));
       canvas.drawPath(line(pts), _stroke(thick, _bodyColor));
-      final hand = pts.last;
-      canvas.drawCircle(hand, 0.032, Paint()..color = PetColors.feet);
-      canvas.drawCircle(hand, 0.032, _stroke(PetProportions.stroke * 0.8));
+      out.add(pts.last);
+      if (hands) _paintHand(canvas, pts.last);
     }
+    return out;
+  }
+
+  void _paintHand(Canvas canvas, Offset hand) {
+    canvas.drawCircle(hand, 0.032, Paint()..color = PetColors.feet);
+    canvas.drawCircle(hand, 0.032, _stroke(PetProportions.stroke * 0.8));
+  }
+
+  // ------------------------------------------------------------------ food
+  /// Rice ball centre: under the mouth, lifted toward it on each bite.
+  Offset _foodCenter(_Geo g) =>
+      Offset(g.cx, g.mouthY + 0.135 - 0.025 * chewOpen);
+
+  /// Rounded-triangle rice ball with a nori band and a bite taken out.
+  void _paintFood(Canvas canvas, _Geo g) {
+    final c = _foodCenter(g);
+    const w = PetProportions.foodSize;
+    const h = w * 0.92;
+    final top = c.translate(0, -h / 2);
+    final bl = c.translate(-w / 2, h / 2);
+    final br = c.translate(w / 2, h / 2);
+    Offset l(Offset a, Offset b, double t) => Offset.lerp(a, b, t)!;
+    const k = 0.22;
+    final tri = Path()
+      ..moveTo(l(top, bl, k).dx, l(top, bl, k).dy)
+      ..quadraticBezierTo(
+          top.dx, top.dy, l(top, br, k).dx, l(top, br, k).dy)
+      ..lineTo(l(br, top, k).dx, l(br, top, k).dy)
+      ..quadraticBezierTo(br.dx, br.dy, l(br, bl, k).dx, l(br, bl, k).dy)
+      ..lineTo(l(bl, br, k).dx, l(bl, br, k).dy)
+      ..quadraticBezierTo(bl.dx, bl.dy, l(bl, top, k).dx, l(bl, top, k).dy)
+      ..close();
+    // bite out of the upper-right edge
+    final rice = Path.combine(
+      PathOperation.difference,
+      tri,
+      Path()
+        ..addOval(Rect.fromCircle(
+            center: l(top, br, 0.36).translate(0.022, -0.014),
+            radius: 0.036)),
+    );
+    canvas.drawPath(rice, Paint()..color = PetColors.rice);
+    canvas.save();
+    canvas.clipPath(rice);
+    canvas.drawRect(
+      Rect.fromCenter(
+          center: c.translate(0, h * 0.30), width: w * 0.42, height: h * 0.5),
+      Paint()..color = PetColors.nori,
+    );
+    canvas.restore();
+    canvas.drawPath(rice, _stroke(0.016));
+  }
+
+  /// Two rice crumbs flying off the mouth corners.
+  void _paintCrumbs(Canvas canvas, _Geo g) {
+    final my = g.mouthY;
+    final o = chewOpen;
+    for (final (c, a) in [
+      (Offset(g.cx - 0.085, my + 0.020 - 0.018 * o), -0.5),
+      (Offset(g.cx + 0.090, my + 0.045 - 0.012 * o), 0.6),
+    ]) {
+      canvas.save();
+      canvas.translate(c.dx, c.dy);
+      canvas.rotate(a);
+      final r =
+          Rect.fromCenter(center: Offset.zero, width: 0.024, height: 0.015);
+      canvas.drawOval(r, Paint()..color = PetColors.rice);
+      canvas.drawOval(r, _stroke(0.006));
+      canvas.restore();
+    }
+  }
+
+  /// Puffed chewing cheeks bulging out of the face outline. Returns the
+  /// bulge centres (left, right). They deflate a bit when the mouth opens.
+  List<Offset> _paintCheekPuffs(Canvas canvas, _Geo g) {
+    final y = g.mouthY + 0.005;
+    // half-width of the body blob (top ellipse) at that height
+    final ry = g.h * 0.62;
+    final dy = (g.top + ry) - y;
+    final hw = dy > 0
+        ? g.w / 2 * math.sqrt(math.max(0, 1 - (dy / ry) * (dy / ry)))
+        : g.w / 2;
+    final rad = PetProportions.cheekPuffRadius * (1 - 0.3 * chewOpen);
+    final out = <Offset>[];
+    for (final side in const [-1.0, 1.0]) {
+      final c = Offset(g.cx + side * (hw - rad * 0.55), y);
+      final rect = Rect.fromCircle(center: c, radius: rad);
+      canvas.drawOval(rect, Paint()..color = _bodyColor);
+      // outline only on the outer side so the bulge merges into the face
+      canvas.drawArc(rect, side > 0 ? -0.45 * math.pi : 0.55 * math.pi,
+          0.9 * math.pi, false, _stroke(PetProportions.stroke));
+      out.add(c);
+    }
+    return out;
+  }
+
+  /// Taut STUFFED belly: faint outline, navel and a shine.
+  void _paintBellyBulge(Canvas canvas, Rect belly) {
+    canvas.drawOval(
+        belly, _stroke(0.012, PetColors.outline.withValues(alpha: 0.40)));
+    canvas.drawOval(
+      Rect.fromCenter(
+        center:
+            belly.center.translate(-belly.width * 0.24, -belly.height * 0.22),
+        width: belly.width * 0.24,
+        height: belly.height * 0.14,
+      ),
+      Paint()..color = Colors.white.withValues(alpha: 0.75),
+    );
+    canvas.drawCircle(belly.center.translate(0, belly.height * 0.12), 0.009,
+        Paint()..color = PetColors.outline.withValues(alpha: 0.45));
+  }
+
+  /// Small burp cloud rising from the mouth corner (full).
+  void _paintBurp(Canvas canvas, _Geo g) {
+    final base = Offset(g.cx + 0.15, g.mouthY + 0.005 - 0.015 * breath);
+    final cloud = Path.combine(
+      PathOperation.union,
+      Path()..addOval(Rect.fromCircle(center: base, radius: 0.026)),
+      Path()
+        ..addOval(Rect.fromCircle(
+            center: base.translate(0.036, -0.026), radius: 0.021))
+        ..addOval(Rect.fromCircle(
+            center: base.translate(0.064, -0.058), radius: 0.015)),
+    );
+    canvas.drawPath(cloud, Paint()..color = PetColors.burp);
+    canvas.drawPath(
+        cloud, _stroke(0.007, PetColors.outline.withValues(alpha: 0.55)));
   }
 
   // ------------------------------------------------------------------ eyes
@@ -467,6 +682,19 @@ class PetCharacterPainter extends CustomPainter {
           );
         case PetFace.tired:
           _openEye(canvas, e, r, spec, side);
+        case PetFace.eating:
+          _openEye(canvas, e, r, spec, side);
+        case PetFace.full:
+          // food coma: blissful closed eyes
+          _closedEye(canvas, e, r);
+        case PetFace.overfed:
+          _openEye(canvas, e, r, spec, side);
+          // worried brows (inner end higher — mirror of proud)
+          canvas.drawLine(
+            Offset(e.dx - side * r * 0.55, e.dy - r - 0.062),
+            Offset(e.dx + side * r * 0.75, e.dy - r - 0.010),
+            _stroke(0.024),
+          );
         case PetFace.critical:
           _openEye(canvas, e, r, spec, side);
           // eye bags
@@ -489,7 +717,7 @@ class PetCharacterPainter extends CustomPainter {
   void _openEye(Canvas canvas, Offset e, double r, PetEyeSpec spec,
       double side) {
     final effLid = math.max(spec.lid, blink.clamp(0.0, 1.0));
-    if (effLid >= 0.92) {
+    if (effLid >= PetDerpy.closedLid) {
       _closedEye(canvas, e, r);
       return;
     }
@@ -606,6 +834,23 @@ class PetCharacterPainter extends CustomPainter {
               my + 0.012 + (i.isEven ? -0.022 : 0.022), x1, my + 0.012);
         }
         canvas.drawPath(p, _stroke(0.018));
+      case PetFace.eating:
+        _chewMouth(canvas, cx, my);
+      case PetFace.overfed:
+        _chewMouth(canvas, cx, my, droop: 0.016);
+      case PetFace.full:
+        // satisfied wide smile, tongue licking the left corner
+        canvas.save();
+        canvas.translate(cx - 0.085, my + 0.012);
+        canvas.rotate(0.55);
+        _tongueBlep(canvas, Offset.zero, 0.042, 0.04);
+        canvas.restore();
+        canvas.drawPath(
+          Path()
+            ..moveTo(cx - 0.11, my - 0.005)
+            ..quadraticBezierTo(cx, my + 0.065, cx + 0.11, my - 0.005),
+          _stroke(0.02),
+        );
       case PetFace.funny:
         final mouth = Rect.fromCenter(
             center: Offset(cx, my + 0.02), width: 0.13, height: 0.10);
@@ -617,6 +862,36 @@ class PetCharacterPainter extends CustomPainter {
         _tongueBlep(canvas, Offset.zero, 0.066, 0.15);
         canvas.restore();
     }
+  }
+
+  /// Chewing mouth: closed "ω" munch while [chewOpen] < 0.3, otherwise a
+  /// small open bite with the tongue showing. [droop] pulls the ω ends down
+  /// (overfed: chewing reluctantly).
+  void _chewMouth(Canvas canvas, double cx, double my, {double droop = 0}) {
+    final o = chewOpen;
+    if (o < 0.3) {
+      const hw = 0.072;
+      canvas.drawPath(
+        Path()
+          ..moveTo(cx - hw, my + droop)
+          ..quadraticBezierTo(cx - hw * 0.55, my + 0.05, cx, my + 0.008)
+          ..quadraticBezierTo(cx + hw * 0.55, my + 0.05, cx + hw, my + droop),
+        _stroke(0.022),
+      );
+      return;
+    }
+    final mouth = Rect.fromCenter(
+        center: Offset(cx, my + 0.016), width: 0.085, height: 0.025 + 0.05 * o);
+    canvas.drawOval(mouth, Paint()..color = PetColors.mouth);
+    canvas.save();
+    canvas.clipPath(Path()..addOval(mouth));
+    canvas.drawOval(
+      Rect.fromCenter(
+          center: Offset(cx, mouth.bottom), width: 0.06, height: 0.04),
+      Paint()..color = PetColors.tongue,
+    );
+    canvas.restore();
+    canvas.drawOval(mouth, _stroke(0.018));
   }
 
   /// Open "D" smile with the tongue inside.
@@ -678,6 +953,9 @@ class PetCharacterPainter extends CustomPainter {
       PetFace.tired => 0.55,
       PetFace.cheer => -0.05 + 0.25 * math.sin(actionProgress * math.pi * 4),
       PetFace.funny => -0.5,
+      PetFace.overfed => 0.55,
+      PetFace.full => 0.32 + 0.05 * breath,
+      PetFace.eating => -0.28 + 0.10 * chewOpen,
       _ => -0.28 + 0.06 * breath,
     };
     const len = 0.17;
@@ -783,7 +1061,8 @@ class PetCharacterPainter extends CustomPainter {
       oldDelegate.blink != blink ||
       oldDelegate.action != action ||
       oldDelegate.actionProgress != actionProgress ||
-      oldDelegate.animated != animated;
+      oldDelegate.animated != animated ||
+      oldDelegate.chew != chew;
 }
 
 /// Derived geometry in unit space for one body shape.

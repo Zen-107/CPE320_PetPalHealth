@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'features/food/food_controller.dart';
+import 'features/food/food_profile_source.dart';
+import 'features/food/food_repository.dart';
 import 'features/signup/screens/signup_gate.dart';
 import 'features/signup/signup_controller.dart';
 import 'features/signup/signup_repository.dart';
@@ -15,6 +18,12 @@ void main() {
   final waterController = WaterController(
     repository: SharedPrefsWaterRepository(),
   );
+  // signup: เปิดแอป → อ่าน Token → S-1 หรือ S-7 (docs/signup/ux-flow.md §3, AC-8)
+  // DECIDED (owner): ยังไม่มี backend — auth จำลองในเครื่องด้วย FakeAuthRepository
+  // + shared_preferences (ไม่มี network)
+  final signupController = SignupController(
+    repository: FakeAuthRepository(store: SharedPrefsAuthLocalStore()),
+  );
   runApp(
     PetPalApp(
       waterController: waterController,
@@ -24,11 +33,11 @@ void main() {
         waterHistory: ControllerWaterHistorySource(waterController),
         exporter: FileStepsReportExporter(),
       ),
-      // signup: เปิดแอป → อ่าน Token → S-1 หรือ S-7 (docs/signup/ux-flow.md §3, AC-8)
-      // DECIDED (owner): ยังไม่มี backend — auth จำลองในเครื่องด้วย FakeAuthRepository
-      // + shared_preferences (ไม่มี network)
-      signupController: SignupController(
-        repository: FakeAuthRepository(store: SharedPrefsAuthLocalStore()),
+      signupController: signupController,
+      // food: Q-13 DECIDED (owner ชั่วคราว) ใช้โปรไฟล์ของ signup · Q-17 ตารางเมนูในเครื่อง
+      foodController: FoodController(
+        repository: SharedPrefsFoodRepository(),
+        profileSource: SignupFoodProfileSource(signupController),
       ),
     ),
   );
@@ -40,6 +49,7 @@ class PetPalApp extends StatelessWidget {
     required this.waterController,
     this.stepsController,
     this.signupController,
+    this.foodController,
   });
 
   final WaterController waterController;
@@ -49,6 +59,9 @@ class PetPalApp extends StatelessWidget {
 
   /// null = เข้าหน้า home (water) ตรง ๆ ไม่ผ่าน signup (พฤติกรรมเดิม — เทสต์ water/steps)
   final SignupController? signupController;
+
+  /// null = หน้า water สร้าง FoodController เองเมื่อกดเข้า food ครั้งแรก
+  final FoodController? foodController;
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +85,7 @@ class PetPalApp extends StatelessWidget {
     return WaterHomeScreen(
       controller: waterController,
       stepsController: stepsController,
+      foodController: foodController,
       welcomeName: welcomeName,
     );
   }
