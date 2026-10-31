@@ -7,6 +7,7 @@ import 'package:petpal_health/shared/pet/pet.dart';
 import '../food_controller.dart';
 import '../food_logic.dart';
 import '../food_rules.dart';
+import '../widgets/food_profile_cta_banner.dart';
 import '../widgets/food_shared_min_height_box.dart';
 import '../widgets/food_toast.dart';
 import 'food_meal_screen.dart';
@@ -233,10 +234,10 @@ class _FoodDashboardScreenState extends State<FoodDashboardScreen>
   // ความสูงขั้นต่ำร่วม เพื่อให้สองที่ตรงกันเสมอ
   static const double _barHeight = 20;
   static const double _barTextGap = 8;
-  static const double _ctaPadH = 16;
-  static const double _ctaPadV = 8;
-  static const double _ctaIconGap = 8;
-  static const double _ctaIconSize = 24;
+  static const double _ctaPadH = FoodProfileCtaBanner.padH;
+  static const double _ctaPadV = FoodProfileCtaBanner.padV;
+  static const double _ctaIconGap = FoodProfileCtaBanner.iconGap;
+  static const double _ctaIconSize = FoodProfileCtaBanner.iconSize;
 
   // ASSUMPTION: ตอนแสดง CTA (ยังไม่มีเป้า) จองที่ให้ข้อความหลอดด้วยเป้าตัวแทน 4 หลัก
   // "9,999" ซึ่งกว้างไม่น้อยกว่าเป้าจริงทุกค่า (ตาราง Base Target + BMI สูงสุด 2,700) — เพื่อให้
@@ -340,49 +341,9 @@ class _FoodDashboardScreenState extends State<FoodDashboardScreen>
   /// กว้างเต็มเพราะ Column หน้า S-1 เป็น stretch · สูงอย่างน้อยเท่าขั้นต่ำของช่อง
   /// (min height จาก ConstrainedBox ของช่อง) และโตตามเนื้อหาได้ — แทน SizedBox.expand
   /// ที่ใช้ไม่ได้เมื่อช่องไม่มีความสูงตายตัว
-  Widget _buildCtaBanner(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final fg = scheme.onSecondaryContainer;
-    return Material(
-      color: scheme.secondaryContainer,
-      borderRadius: BorderRadius.circular(8),
-      child: InkWell(
-        key: const Key('food_profile_cta_banner'),
-        borderRadius: BorderRadius.circular(8),
-        onTap: _openProfile,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      FoodRules.profileCtaText,
-                      key: const Key('food_cta_text'),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(color: fg),
-                    ),
-                    Text(
-                      _controller.ctaTotalText,
-                      key: const Key('food_cta_total_text'),
-                      // BUG-FOOD-2 (DECIDED D-5): ยอดรวมต้องแสดงครบ ห้ามตัด — ขึ้นบรรทัด
-                      // ใหม่ได้ (ช่องโตตาม) · ellipsis ใช้เฉพาะข้อความชวนตาม ui-spec #9b
-                      style: theme.textTheme.titleMedium?.copyWith(color: fg),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: _ctaIconGap),
-              Icon(Icons.chevron_right, size: _ctaIconSize, color: fg),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _buildCtaBanner(BuildContext context) => FoodProfileCtaBanner(
+    totalText: _controller.ctaTotalText,
+    onTap: _openProfile,
+  );
+
 }

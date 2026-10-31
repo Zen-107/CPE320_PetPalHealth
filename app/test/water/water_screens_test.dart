@@ -56,9 +56,12 @@ void main() {
           findsOneWidget);
       expect(find.descendant(of: logButton, matching: find.byIcon(Icons.add)),
           findsOneWidget);
+      // DECIDED (owner dashboard รอบ 3 ข้อ 7): ปุ่มรายงานเป็นปุ่มไอคอน + tooltip
+      // 「รายงานรายเดือน」 ไม่มีข้อความบนปุ่ม (spec เปลี่ยน — เดิมหาข้อความบนปุ่ม)
+      expect(tester.widget<IconButton>(reportButton).tooltip, 'รายงานรายเดือน');
       expect(
           find.descendant(of: reportButton, matching: find.text('รายงานรายเดือน')),
-          findsOneWidget);
+          findsNothing);
     });
 
     testWidgets('EDGE_S1_first_open_shows_0_cups_0_percent_critical',

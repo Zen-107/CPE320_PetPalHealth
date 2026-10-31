@@ -21,6 +21,7 @@ class PetCharacterPainter extends CustomPainter {
     this.actionProgress = 0,
     this.animated = false,
     this.chew = 0,
+    this.hop = 0,
   });
 
   /// Expression + body shape.
@@ -44,6 +45,10 @@ class PetCharacterPainter extends CustomPainter {
   /// Chew-loop phase 0..1 of the eating faces (0 = static frame: mouth
   /// closed "ω", cheeks fully puffed). See [chewOpen].
   final double chew;
+
+  /// Hop-loop phase 0..1 of the bouncing face (dashboard CHEERFUL; 0 =
+  /// static frame: standing on the ground, arms up). See [hopLift].
+  final double hop;
 
   // ---------------------------------------------------------------- getters
   PetExpression get expression => pose.expression;
@@ -91,9 +96,31 @@ class PetCharacterPainter extends CustomPainter {
   bool get showsBurpPuff =>
       action == PetAction.none && expression == PetExpression.full;
 
-  /// Worried brows (inner ends up) — overfed.
+  /// Worried brows (inner ends up) — overfed (open eyes only) and crying
+  /// (eyes squeezed shut, kept while blinking).
   bool get showsWorriedBrows =>
-      isDerpyEye && expression == PetExpression.overfed;
+      (isDerpyEye && expression == PetExpression.overfed) ||
+      (action == PetAction.none && expression == PetExpression.crying);
+
+  /// Tear streams down both cheeks + a falling tear (crying; hidden during
+  /// jump / cheer).
+  bool get showsTears =>
+      action == PetAction.none && expression == PetExpression.crying;
+
+  /// Floating "..." dots next to the head (dazed; hidden during jump /
+  /// cheer).
+  bool get showsThoughtDots =>
+      action == PetAction.none && expression == PetExpression.dazed;
+
+  /// Height (fraction of `s`) of the continuous hop this frame (cheerful,
+  /// only when no one-shot action plays; 0 in the static frame).
+  double get hopLift => action == PetAction.none && pose.isBouncing
+      ? math.sin(math.pi * hop.clamp(0.0, 1.0)) * PetProportions.hopHeight
+      : 0;
+
+  /// Arms raised above the head: cheer reaction and the cheerful face.
+  bool get _armsUp =>
+      isCheering || (action == PetAction.none && pose.isBouncing);
 
   /// How open the chewing mouth is 0 (closed "ω") .. 1 (open bite).
   double get chewOpen => math.sin(math.pi * chew.clamp(0.0, 1.0));
@@ -121,7 +148,8 @@ class PetCharacterPainter extends CustomPainter {
       isCheering ||
       (action == PetAction.none &&
           (expression == PetExpression.happy ||
-              expression == PetExpression.proud));
+              expression == PetExpression.proud ||
+              expression == PetExpression.cheerful));
 
   /// The face actually drawn this frame.
   PetFace get face {
@@ -151,6 +179,9 @@ class PetCharacterPainter extends CustomPainter {
       PetExpression.eating => PetFace.eating,
       PetExpression.full => PetFace.full,
       PetExpression.overfed => PetFace.overfed,
+      PetExpression.crying => PetFace.crying,
+      PetExpression.dazed => PetFace.dazed,
+      PetExpression.cheerful => PetFace.cheerful,
     };
   }
 
@@ -200,6 +231,12 @@ class PetCharacterPainter extends CustomPainter {
       }
     } else if (isCheering) {
       lift = (math.sin(2 * math.pi * t)).abs() * PetProportions.cheerHopHeight;
+    } else if (pose.isBouncing && hop > 0) {
+      // continuous hop: stretch in the air, squash near the ground
+      lift = hopLift;
+      final k = lift / PetProportions.hopHeight; // 0 ground .. 1 apex
+      sy *= 1 + 0.05 * k - 0.06 * (1 - k) * (1 - k);
+      sx *= 1 - 0.025 * k + 0.04 * (1 - k) * (1 - k);
     }
 
     // --- ground shadow (shrinks while airborne)
@@ -340,7 +377,9 @@ class PetCharacterPainter extends CustomPainter {
     };
     final cheekPaint = Paint()
       ..color = PetColors.cheek.withValues(
-          alpha: face == PetFace.cheer || face == PetFace.funny
+          alpha: face == PetFace.cheer ||
+                  face == PetFace.funny ||
+                  _mouthFace == PetFace.cheerful
               ? 0.95
               : cheekAlpha);
     for (final side in const [-1.0, 1.0]) {
@@ -362,12 +401,18 @@ class PetCharacterPainter extends CustomPainter {
     // 10. mouth + tongue
     _paintMouth(canvas, g);
 
-    // 10b. drool bubble (derpy, happy / content)
+    // 10a. tear streams + falling tear (crying) — over the cheeks
+    if (showsTears) _paintTears(canvas, g);
+
+    // 10b. drool bubble (derpy, happy / content / dazed)
     if (showsDroolBubble) _paintDrool(canvas, g);
 
     // 10c. crumbs (eating / overfed) and burp puff (full)
     if (showsFood) _paintCrumbs(canvas, g);
     if (showsBurpPuff) _paintBurp(canvas, g);
+
+    // 10d. floating "..." (dazed)
+    if (showsThoughtDots) _paintThoughtDots(canvas, g);
 
     // 11. leaf on the head
     _paintLeaf(canvas, g);
@@ -452,7 +497,7 @@ class PetCharacterPainter extends CustomPainter {
       final shoulder =
           Offset(g.cx + side * (g.w / 2 - 0.075), g.top + g.h * 0.55);
       final List<Offset> joints;
-      if (isCheering) {
+      if (_armsUp) {
         joints = [
           Offset(g.cx + side * (g.w / 2 + 0.06), g.top + g.h * 0.12),
         ];
@@ -480,7 +525,8 @@ class PetCharacterPainter extends CustomPainter {
           Offset(g.cx + side * (g.w / 2 - 0.09),
               g.top + g.h * 0.70 + 0.008 * breath),
         ];
-      } else if (pose.isLowState) {
+      } else if (pose.isLowState ||
+          expression == PetExpression.crying) {
         joints = [
           Offset(g.cx + side * (g.w / 2 - 0.08), g.top + g.h * 0.80),
         ];
@@ -641,7 +687,8 @@ class PetCharacterPainter extends CustomPainter {
   // ------------------------------------------------------------------ eyes
   void _paintEyes(Canvas canvas, _Geo g) {
     final r = PetProportions.bumpRadius * PetProportions.scleraFactor;
-    final f = face;
+    // faces whose eyes are shut anyway keep their own eyes during a blink
+    final f = face == PetFace.blink && _eyesShut ? _expressionFace : face;
     for (final side in const [-1.0, 1.0]) {
       final e = side < 0 ? g.leftEye : g.rightEye;
       final (left, right) = eyeSpecs;
@@ -689,11 +736,30 @@ class PetCharacterPainter extends CustomPainter {
           _closedEye(canvas, e, r);
         case PetFace.overfed:
           _openEye(canvas, e, r, spec, side);
-          // worried brows (inner end higher — mirror of proud)
-          canvas.drawLine(
-            Offset(e.dx - side * r * 0.55, e.dy - r - 0.062),
-            Offset(e.dx + side * r * 0.75, e.dy - r - 0.010),
-            _stroke(0.024),
+          _worriedBrow(canvas, e, r, side);
+        case PetFace.crying:
+          // squeezed shut: a wide arch tilted sad (outer end lower)
+          canvas.drawPath(
+            Path()
+              ..moveTo(e.dx - side * r * 0.85, e.dy + r * 0.05)
+              ..quadraticBezierTo(e.dx - side * r * 0.05, e.dy - r * 0.45,
+                  e.dx + side * r * 0.85, e.dy + r * 0.30),
+            _stroke(0.032),
+          );
+          if (showsWorriedBrows) _worriedBrow(canvas, e, r, side, low: true);
+        case PetFace.dazed:
+          _openEye(canvas, e, r, spec, side);
+        case PetFace.cheerful:
+          // ^ ^ (same as the cheer reaction)
+          canvas.drawArc(
+            Rect.fromCenter(
+                center: e.translate(0, r * 0.35),
+                width: r * 1.5,
+                height: r * 1.3),
+            math.pi * 1.1,
+            math.pi * 0.8,
+            false,
+            _stroke(0.03),
           );
         case PetFace.critical:
           _openEye(canvas, e, r, spec, side);
@@ -710,6 +776,18 @@ class PetCharacterPainter extends CustomPainter {
           );
       }
     }
+  }
+
+  /// Worried brow (inner end higher — mirror of the proud brow).
+  /// [low] sits the brow closer to the eye (crying: the eye is a line).
+  void _worriedBrow(Canvas canvas, Offset e, double r, double side,
+      {bool low = false}) {
+    final d = low ? 0.052 : 0.0;
+    canvas.drawLine(
+      Offset(e.dx - side * r * 0.55, e.dy - r - 0.062 + d),
+      Offset(e.dx + side * r * 0.75, e.dy - r - 0.010 + d),
+      _stroke(0.024),
+    );
   }
 
   /// One derpy open eye: pupil offset/size and upper lid from [spec]
@@ -784,7 +862,32 @@ class PetCharacterPainter extends CustomPainter {
       case PetFace.happy:
         _openSmile(canvas, cx, my, 0.11, 0.085);
       case PetFace.cheer:
+      case PetFace.cheerful:
         _openSmile(canvas, cx, my, 0.13, 0.11);
+      case PetFace.crying:
+        // wailing: wide open mouth, corners pulled down, tongue inside
+        final wail = Path()
+          ..moveTo(cx - 0.105, my + 0.050)
+          ..quadraticBezierTo(cx, my - 0.045, cx + 0.105, my + 0.050)
+          ..quadraticBezierTo(cx + 0.090, my + 0.120, cx, my + 0.122)
+          ..quadraticBezierTo(cx - 0.090, my + 0.120, cx - 0.105, my + 0.050)
+          ..close();
+        canvas.drawPath(wail, Paint()..color = PetColors.mouth);
+        canvas.save();
+        canvas.clipPath(wail);
+        canvas.drawOval(
+          Rect.fromCenter(
+              center: Offset(cx, my + 0.118), width: 0.12, height: 0.06),
+          Paint()..color = PetColors.tongue,
+        );
+        canvas.restore();
+        canvas.drawPath(wail, _stroke(0.02));
+      case PetFace.dazed:
+        // small blank "o", a bit off-centre
+        final o = Rect.fromCenter(
+            center: Offset(cx - 0.012, my + 0.022), width: 0.05, height: 0.04);
+        canvas.drawOval(o, Paint()..color = PetColors.mouth);
+        canvas.drawOval(o, _stroke(0.016));
       case PetFace.content:
         _tongueBlep(canvas, Offset(cx + 0.012, my + 0.022), 0.058, 0.05);
         canvas.drawPath(
@@ -934,11 +1037,14 @@ class PetCharacterPainter extends CustomPainter {
   /// Light-blue drool bubble with a highlight next to the tongue / mouth
   /// corner (character.md §4.1).
   void _paintDrool(Canvas canvas, _Geo g) {
-    final c = expression == PetExpression.happy
-        // hangs under the right corner of the open "D" smile
-        ? Offset(g.cx + 0.118, g.mouthY + 0.036)
-        // next to the tip of the "blep" tongue
-        : Offset(g.cx + 0.068, g.mouthY + 0.066);
+    final c = switch (expression) {
+      // hangs under the right corner of the open "D" smile
+      PetExpression.happy => Offset(g.cx + 0.118, g.mouthY + 0.036),
+      // dangles from the right edge of the small "o"
+      PetExpression.dazed => Offset(g.cx + 0.030, g.mouthY + 0.050),
+      // next to the tip of the "blep" tongue
+      _ => Offset(g.cx + 0.068, g.mouthY + 0.066),
+    };
     final rad = PetDerpy.droolRadius * (1 + PetDerpy.droolBreathGrow * breath);
     canvas.drawCircle(c, rad, Paint()..color = PetColors.drool);
     canvas.drawCircle(c, rad, _stroke(0.008, PetColors.droolOutline));
@@ -956,6 +1062,9 @@ class PetCharacterPainter extends CustomPainter {
       PetFace.overfed => 0.55,
       PetFace.full => 0.32 + 0.05 * breath,
       PetFace.eating => -0.28 + 0.10 * chewOpen,
+      PetFace.crying => 1.05,
+      PetFace.dazed => 0.20 + 0.10 * breath,
+      PetFace.cheerful => -0.05 + 0.22 * math.sin(hop * math.pi * 2),
       _ => -0.28 + 0.06 * breath,
     };
     const len = 0.17;
@@ -1002,7 +1111,66 @@ class PetCharacterPainter extends CustomPainter {
     }
   }
 
-  void _drop(Canvas canvas, Offset top, double size, double alpha) {
+  /// Two tear streams from the outer eye corners down the cheeks, and a
+  /// tear that falls off the left eye with the breath (crying).
+  void _paintTears(Canvas canvas, _Geo g) {
+    final r = PetProportions.bumpRadius * PetProportions.scleraFactor;
+    final fill = Paint()..color = PetColors.tear;
+    final rim = _stroke(0.008, PetColors.tearOutline.withValues(alpha: 0.85));
+    for (final side in const [-1.0, 1.0]) {
+      final e = side < 0 ? g.leftEye : g.rightEye;
+      final x0 = e.dx + side * r * 0.40;
+      final y0 = e.dy + r * 0.32;
+      final y1 = g.mouthY + 0.13;
+      final x1 = x0 + side * 0.016;
+      const wTop = 0.036;
+      const wBot = 0.054;
+      final stream = Path()
+        ..moveTo(x0 - wTop / 2, y0)
+        ..quadraticBezierTo(x0 - wTop / 2 + side * 0.010, (y0 + y1) / 2,
+            x1 - wBot / 2, y1)
+        ..arcToPoint(Offset(x1 + wBot / 2, y1),
+            radius: const Radius.circular(wBot / 2), clockwise: false)
+        ..quadraticBezierTo(x0 + wTop / 2 + side * 0.010, (y0 + y1) / 2,
+            x0 + wTop / 2, y0)
+        ..close();
+      canvas.drawPath(stream, fill);
+      canvas.drawPath(stream, rim);
+      // shine line down the stream
+      canvas.drawLine(
+          Offset(x0 - wTop * 0.15, y0 + 0.02),
+          Offset(x1 - wBot * 0.18, y1 - 0.02),
+          _stroke(0.006, PetColors.eyeWhite.withValues(alpha: 0.8)));
+    }
+    // falling tear off the outer side of the left eye
+    final e = g.leftEye;
+    _drop(
+      canvas,
+      Offset(e.dx - r * 1.05, e.dy + r * 0.2 + breath * 0.06),
+      0.055,
+      1 - breath * 0.35,
+      PetColors.tear,
+    );
+  }
+
+  /// Three "..." dots floating up-right of the head, bobbing with the
+  /// breath (dazed).
+  void _paintThoughtDots(Canvas canvas, _Geo g) {
+    final base = Offset(
+        g.cx + g.eyeOff + PetProportions.bumpRadius + 0.02, g.top - 0.03);
+    final paint = Paint()..color = PetColors.dazedDots;
+    for (var i = 0; i < 3; i++) {
+      final c = base.translate(0.045 * i,
+          -0.030 * i - 0.012 * math.sin(math.pi * (breath + i / 3)));
+      canvas.drawCircle(
+          Offset(c.dx.clamp(0.03, 0.97), c.dy.clamp(0.03, 0.97)),
+          0.016 + 0.003 * i,
+          paint);
+    }
+  }
+
+  void _drop(Canvas canvas, Offset top, double size, double alpha,
+      [Color color = PetColors.sweat]) {
     final p = Path()
       ..moveTo(top.dx, top.dy)
       ..quadraticBezierTo(top.dx + size * 0.55, top.dy + size * 0.75,
@@ -1010,12 +1178,10 @@ class PetCharacterPainter extends CustomPainter {
       ..quadraticBezierTo(
           top.dx - size * 0.55, top.dy + size * 0.75, top.dx, top.dy)
       ..close();
-    canvas.drawPath(
-        p, Paint()..color = PetColors.sweat.withValues(alpha: alpha));
+    canvas.drawPath(p, Paint()..color = color.withValues(alpha: alpha));
     canvas.drawPath(
         p,
-        _stroke(0.008,
-            const Color(0xFF4A90C2).withValues(alpha: alpha * 0.8)));
+        _stroke(0.008, PetColors.tearOutline.withValues(alpha: alpha * 0.8)));
   }
 
   void _paintSparkles(Canvas canvas, _Geo g) {
@@ -1024,8 +1190,9 @@ class PetCharacterPainter extends CustomPainter {
       (Offset(g.cx + g.w / 2 + 0.05, g.top + 0.0), 0.05 * tw),
       (Offset(g.cx - g.w / 2 - 0.03, g.top + 0.12), 0.034 * tw),
     ];
-    if (isCheering) {
-      final k = 0.7 + 0.3 * math.sin(actionProgress * math.pi * 6).abs();
+    if (isCheering || pose.isBouncing) {
+      final phase = isCheering ? actionProgress * 6 : hop * 2;
+      final k = 0.7 + 0.3 * math.sin(phase * math.pi).abs();
       pts
         ..add((Offset(g.cx - g.w / 2 - 0.06, g.top - 0.06), 0.045 * k))
         ..add((Offset(g.cx + g.w / 2 + 0.07, g.top + 0.18), 0.04 * k))
@@ -1062,7 +1229,8 @@ class PetCharacterPainter extends CustomPainter {
       oldDelegate.action != action ||
       oldDelegate.actionProgress != actionProgress ||
       oldDelegate.animated != animated ||
-      oldDelegate.chew != chew;
+      oldDelegate.chew != chew ||
+      oldDelegate.hop != hop;
 }
 
 /// Derived geometry in unit space for one body shape.

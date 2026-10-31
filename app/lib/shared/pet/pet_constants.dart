@@ -73,6 +73,16 @@ abstract final class PetColors {
 
   /// Burp puff (food OVER_LIMIT).
   static const Color burp = Color(0xFFF2F6EE);
+
+  /// Tear streams + falling tear (dashboard CRYING). Lighter than [sweat]
+  /// and drawn as streams, so it never reads as a sweat drop.
+  static const Color tear = Color(0xFFB4E3FB);
+
+  /// Rim of the tears (also the sweat-drop rim colour).
+  static const Color tearOutline = Color(0xFF4A90C2);
+
+  /// Floating "..." dots of the dazed face.
+  static const Color dazedDots = Color(0xFF7E9677);
 }
 
 /// One eye of the derpy look (character.md §4.1). Values are fractions of
@@ -142,6 +152,22 @@ abstract final class PetDerpy {
       PetEyeSpec(lid: 0.48, pupilDx: 0.22, pupilDy: 0.36, pupil: 0.56),
       PetEyeSpec(lid: 0.58, pupilDx: -0.20, pupilDy: 0.40, pupil: 0.46),
     ),
+    // dashboard CRYING: eyes squeezed shut (drawn as sad tilted lines)
+    PetExpression.crying: (
+      PetEyeSpec(lid: 1.0, pupilDx: 0.0, pupilDy: 0.0, pupil: 0.0),
+      PetEyeSpec(lid: 1.0, pupilDx: 0.0, pupilDy: 0.0, pupil: 0.0),
+    ),
+    // dashboard DAZED: BOTH lids evenly half down (between the single
+    // half-lid and the droopy >= 0.45) + tiny dot pupils staring ahead
+    PetExpression.dazed: (
+      PetEyeSpec(lid: 0.36, pupilDx: -0.02, pupilDy: 0.10, pupil: 0.24),
+      PetEyeSpec(lid: 0.36, pupilDx: 0.06, pupilDy: 0.12, pupil: 0.20),
+    ),
+    // dashboard CHEERFUL: happy "^ ^" closed eyes
+    PetExpression.cheerful: (
+      PetEyeSpec(lid: 1.0, pupilDx: 0.0, pupilDy: 0.0, pupil: 0.0),
+      PetEyeSpec(lid: 1.0, pupilDx: 0.0, pupilDy: 0.0, pupil: 0.0),
+    ),
   };
 
   /// Lid at or above this = the eye is drawn closed.
@@ -164,6 +190,7 @@ abstract final class PetDerpy {
   static const Set<PetExpression> droolExpressions = {
     PetExpression.happy,
     PetExpression.content,
+    PetExpression.dazed,
   };
 
   /// Drool bubble radius (grows up to +15 % with the breath).
@@ -243,6 +270,9 @@ abstract final class PetProportions {
 
   /// Max hop height (cheer, 2 hops).
   static const double cheerHopHeight = 0.06;
+
+  /// Max hop height of the continuous hop loop (dashboard CHEERFUL).
+  static const double hopHeight = 0.05;
 
   /// Breathing scale amplitude (y), x shrinks by half of it.
   static const double breathAmplitude = 0.03;
@@ -349,6 +379,10 @@ abstract final class PetTiming {
   /// One chomp of the chew loop (food eating faces, repeats while the pose
   /// is eating). How long EATING lasts is the feature's rule, not the pet's.
   static const Duration chew = Duration(milliseconds: 420);
+
+  /// One hop of the continuous hop loop (dashboard CHEERFUL, repeats while
+  /// the pose is bouncing).
+  static const Duration hop = Duration(milliseconds: 760);
 }
 
 /// Predictable keys for tests (character.md §7).
