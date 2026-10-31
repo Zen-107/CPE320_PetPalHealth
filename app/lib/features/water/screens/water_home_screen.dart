@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:petpal_health/shared/pet/pet.dart';
 
+import '../../dashboard/dashboard_rules.dart';
+import '../../dashboard/screens/dashboard_screen.dart';
 import '../../food/food_controller.dart';
 import '../../food/food_repository.dart';
 import '../../food/food_rules.dart';
@@ -131,11 +133,7 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
 
   /// เปิด S-1 ของ steps (docs/steps/ui-spec.md §2.0, D-3)
   void _openSteps() {
-    final steps = widget.stepsController ??
-        (_ownedStepsController ??= StepsController(
-          repository: SharedPrefsStepsRepository(),
-          waterHistory: ControllerWaterHistorySource(_controller),
-        ));
+    final steps = _stepsController();
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => StepsDashboardScreen(controller: steps),
@@ -147,13 +145,42 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
   // ASSUMPTION: ไม่ได้ inject FoodController (เช่น เทสต์ที่ไม่มี signup) → โปรไฟล์อยู่ใน
   // หน่วยความจำ (InMemoryFoodProfileSource) ข้อมูลอาหารยังเก็บด้วย shared_preferences
   void _openFood() {
-    final food = widget.foodController ??
-        (_ownedFoodController ??= FoodController(
-          repository: SharedPrefsFoodRepository(),
-        ));
+    final food = _foodController();
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => FoodDashboardScreen(controller: food),
+      ),
+    );
+  }
+
+  /// StepsController ตัวเดียวกันทั้งหน้า steps และ dashboard — null = สร้างเองครั้งแรกที่ใช้
+  StepsController _stepsController() =>
+      widget.stepsController ??
+      (_ownedStepsController ??= StepsController(
+        repository: SharedPrefsStepsRepository(),
+        waterHistory: ControllerWaterHistorySource(_controller),
+      ));
+
+  /// FoodController ตัวเดียวกันทั้งหน้า food และ dashboard — null = สร้างเองครั้งแรกที่ใช้
+  FoodController _foodController() =>
+      widget.foodController ??
+      (_ownedFoodController ??= FoodController(
+        repository: SharedPrefsFoodRepository(),
+      ));
+
+  /// เปิด S-1 ของ dashboard (docs/dashboard/ui-spec.md §2.0, D-5) — ส่ง controller ตัวเดียวกับ
+  /// ที่หน้านี้ส่งให้ steps / food เพื่อให้คะแนนตรงกับข้อมูลจริง
+  void _openDashboard() {
+    final steps = _stepsController();
+    final food = _foodController();
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => DashboardScreen(
+          waterController: _controller,
+          stepsController: steps,
+          foodController: food,
+          animatePet: widget.animatePet,
+        ),
       ),
     );
   }
@@ -179,14 +206,23 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
             icon: const Icon(Icons.restaurant, size: 24),
             tooltip: FoodRules.entryTooltip,
           ),
-          TextButton.icon(
+          // dashboard ui-spec §2.0: ต่อจาก food_entry_button ก่อน water_monthly_report_button
+          IconButton(
+            key: const Key('dashboard_entry_button'),
+            onPressed: _openDashboard,
+            icon: const Icon(Icons.dashboard, size: 24),
+            tooltip: DashboardRules.entryTooltip,
+          ),
+          // DECIDED (owner dashboard รอบ 3 ข้อ 7): ปุ่มรายงานเป็นปุ่มไอคอน + tooltip
+          // 「รายงานรายเดือน」 (key เดิม) — AppBar 4 ปุ่มไอคอนไม่ล้นจอ 360 dp ทุก textScaler
+          IconButton(
             key: const Key('water_monthly_report_button'),
             onPressed: _openMonthlyReport,
             icon: const AssetImageOrIcon(
               assetPath: WaterRules.calendarReportIcon,
               fallbackIcon: Icons.calendar_month,
             ),
-            label: const Text(WaterRules.monthlyReportButtonText),
+            tooltip: WaterRules.monthlyReportButtonText,
           ),
         ],
       ),

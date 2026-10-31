@@ -35,6 +35,20 @@ enum PetExpression {
   /// Still eating while stuffed: heavy lids on both eyes cross-eyed at the
   /// food, worried brows, puffed cheeks, sweat drop. (food OVER_LIMIT_FEEDING)
   overfed,
+
+  /// Sobbing: eyes squeezed shut with sad tilt, worried brows, tear streams
+  /// down both cheeks + a falling tear, wailing open mouth, drooping leaf,
+  /// arms hanging. (dashboard CRYING)
+  crying,
+
+  /// Spaced out: both lids evenly half down, tiny dot pupils staring into
+  /// nothing, small "o" mouth with a drool bubble, floating "..." dots,
+  /// lazy leaf. (dashboard DAZED)
+  dazed,
+
+  /// Over the moon: "^ ^" eyes, wide open grin, both arms up, sparkles,
+  /// waving leaf; the widget runs a continuous hop loop. (dashboard CHEERFUL)
+  cheerful,
 }
 
 /// Body shape (character.md §3). Water always uses [normal].
@@ -65,6 +79,9 @@ enum PetFace {
   eating,
   full,
   overfed,
+  crying,
+  dazed,
+  cheerful,
 }
 
 /// Expression + body shape. Use the static presets for each feature state.
@@ -123,10 +140,32 @@ class PetPose {
   static const PetPose foodOverLimitFeeding =
       PetPose(expression: PetExpression.overfed, body: PetBodyShape.stuffed);
 
+  // dashboard — docs/dashboard/game-rules.md §2 (total score)
+  /// `CRYING` (ร้องไห้) `[0, 30]`.
+  static const PetPose dashboardCrying =
+      PetPose(expression: PetExpression.crying);
+
+  /// `DAZED` (เหม่อลอย) `(30, 60]`.
+  static const PetPose dashboardDazed = PetPose(expression: PetExpression.dazed);
+
+  /// `BUBBLY` (ออรุ่มเจ๊าะ) `(60, 80]`: reuses the existing happy face
+  /// (big shiny eyes, open smile, sparkles, drool) on the normal body —
+  /// the same picture as [waterHappy].
+  static const PetPose dashboardBubbly =
+      PetPose(expression: PetExpression.happy);
+
+  /// `CHEERFUL` (ยิ้มร่าเริง) `(80, 100]` — hops continuously while animating.
+  static const PetPose dashboardCheerful =
+      PetPose(expression: PetExpression.cheerful);
+
   /// Eating faces hold food and chew (the widget runs a chew loop).
   bool get isEating =>
       expression == PetExpression.eating ||
       expression == PetExpression.overfed;
+
+  /// Bouncing faces hop continuously (the widget runs a hop loop):
+  /// dashboard CHEERFUL.
+  bool get isBouncing => expression == PetExpression.cheerful;
 
   /// Low states show sweat drops, droopy eyes and breathe slower.
   bool get isLowState =>

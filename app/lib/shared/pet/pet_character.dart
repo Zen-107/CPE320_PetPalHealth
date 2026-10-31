@@ -53,8 +53,10 @@ class PetCharacter extends StatefulWidget {
   });
 
   /// Expression + body shape. Use the presets, e.g. [PetPose.waterTired],
-  /// [PetPose.stepsMuscle], [PetPose.foodEating]. Eating poses
-  /// ([PetPose.isEating]) also run a chew loop while animating.
+  /// [PetPose.stepsMuscle], [PetPose.foodEating], [PetPose.dashboardCrying].
+  /// Eating poses ([PetPose.isEating]) also run a chew loop and bouncing
+  /// poses ([PetPose.isBouncing], dashboard CHEERFUL) a hop loop while
+  /// animating.
   final PetPose pose;
 
   /// Side of the square box in logical px (screens use 160).
@@ -89,6 +91,7 @@ class _PetCharacterState extends State<PetCharacter>
   AnimationController? _blink;
   AnimationController? _action;
   AnimationController? _chew; // only while the pose is eating
+  AnimationController? _hop; // only while the pose is bouncing
   Timer? _blinkTimer;
   PetAction _currentAction = PetAction.none;
   late math.Random _random;
@@ -117,6 +120,10 @@ class _PetCharacterState extends State<PetCharacter>
     if (widget.animate && widget.pose.isEating != oldWidget.pose.isEating) {
       _syncChew();
     }
+    if (widget.animate &&
+        widget.pose.isBouncing != oldWidget.pose.isBouncing) {
+      _syncHop();
+    }
     if (widget.cheerTrigger != oldWidget.cheerTrigger) {
       _play(PetAction.cheer);
     }
@@ -137,6 +144,7 @@ class _PetCharacterState extends State<PetCharacter>
       });
     _scheduleBlink();
     _syncChew();
+    _syncHop();
   }
 
   /// Chew loop runs only while the pose is an eating face (food EATING /
@@ -151,6 +159,18 @@ class _PetCharacterState extends State<PetCharacter>
     }
   }
 
+  /// Hop loop runs only while the pose is bouncing (dashboard CHEERFUL) —
+  /// no extra ticker in the other states.
+  void _syncHop() {
+    if (widget.pose.isBouncing) {
+      _hop ??= AnimationController(vsync: this, duration: PetTiming.hop)
+        ..repeat();
+    } else {
+      _hop?.dispose();
+      _hop = null;
+    }
+  }
+
   void _stop() {
     _blinkTimer?.cancel();
     _blinkTimer = null;
@@ -158,7 +178,8 @@ class _PetCharacterState extends State<PetCharacter>
     _blink?.dispose();
     _action?.dispose();
     _chew?.dispose();
-    _breath = _blink = _action = _chew = null;
+    _hop?.dispose();
+    _breath = _blink = _action = _chew = _hop = null;
     _currentAction = PetAction.none;
   }
 
@@ -214,6 +235,7 @@ class _PetCharacterState extends State<PetCharacter>
       actionProgress: action == PetAction.none ? 0 : _action!.value,
       animated: widget.animate,
       chew: _chew?.value ?? 0,
+      hop: _hop?.value ?? 0,
     );
   }
 
@@ -226,7 +248,13 @@ class _PetCharacterState extends State<PetCharacter>
           painter: _painter(),
         );
 
-    final listenables = <Listenable>[?_breath, ?_blink, ?_action, ?_chew];
+    final listenables = <Listenable>[
+      ?_breath,
+      ?_blink,
+      ?_action,
+      ?_chew,
+      ?_hop,
+    ];
     final Widget child = listenables.isEmpty
         ? paint()
         : AnimatedBuilder(
