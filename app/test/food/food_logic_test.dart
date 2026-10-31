@@ -49,6 +49,7 @@ void main() {
       expect(FoodRules.eatingAnimationSeconds, docEatingSeconds);
       expect(FoodRules.toastSeconds, docToastSeconds);
       expect(FoodRules.toastAnchorOffset, docToastAnchor);
+      // DECIDED 7day Q-19: food เก็บประวัติ 30 วัน (เดิม 7)
       expect(FoodRules.historyRetentionDays, docHistoryDays);
     });
 
@@ -149,10 +150,19 @@ void main() {
       expect(after.history.single.isOverTarget, isFalse);
     });
 
-    test('US5_EDGE_history_keeps_recent_days_and_drops_older_than_7_days', () {
-      // วันปัจจุบัน 19 ต.ค. มีประวัติ 10–18 ต.ค. → ตัดรอบเข้าวันที่ 20
+    test('US5_EDGE_DECIDED_Q19_history_keeps_recent_30_days_and_drops_older',
+        () {
+      // DECIDED (owner 7day รอบ 1 + รอบ 2 Q-19 + รอบ 3 ข้อ 2): food เก็บประวัติ 30 วันนับรวมวันนี้
+      // วันปัจจุบัน 30 ต.ค. มีประวัติ 20 ก.ย.–29 ต.ค. → ตัดรอบเข้าวันที่ 31 ต.ค.
+      // 30 วันรวมวันนี้ = 2–31 ต.ค. → ประวัติ (ไม่รวมวันนี้) = 2–30 ต.ค. · 20 ก.ย.–1 ต.ค. ถูกลบ
       final history = [
-        for (var day = 10; day <= 18; day++)
+        for (var day = 20; day <= 30; day++)
+          DailyFoodRecord(
+              date: DateTime(2026, 9, day),
+              totalCalories: day * 10,
+              targetCalories: 2000,
+              isOverTarget: false),
+        for (var day = 1; day <= 29; day++)
           DailyFoodRecord(
               date: d(day),
               totalCalories: day * 10,
@@ -160,17 +170,17 @@ void main() {
               isOverTarget: false),
       ];
       final s = FoodState(
-          day: d(19), totalCalories: 1900, history: history, lastSeenAt: t(19, 20));
+          day: d(30), totalCalories: 1900, history: history, lastSeenAt: t(30, 20));
       final after =
-          FoodLogic.applyDayRollover(s, t(20, 6), targetCalories: 2000);
+          FoodLogic.applyDayRollover(s, t(31, 6), targetCalories: 2000);
       final days = after.history.map((r) => r.date).toSet();
-      // 14–19 อยู่ใน 7 วันล่าสุดไม่ว่าจะนับรวมวันนี้หรือไม่ (ดูคำถามค้าง)
-      for (var day = 14; day <= 19; day++) {
+      for (var day = 2; day <= 30; day++) {
         expect(days, contains(d(day)), reason: 'day $day ต้องยังอยู่');
       }
-      // 10–12 เก่ากว่า 7 วันในทุกการตีความ
-      for (var day = 10; day <= 12; day++) {
-        expect(days, isNot(contains(d(day))), reason: 'day $day ต้องถูกลบ');
+      expect(days, isNot(contains(d(1))), reason: '1 ต.ค. = วันที่ 31 ย้อนหลัง ต้องถูกลบ');
+      for (var day = 20; day <= 30; day++) {
+        expect(days, isNot(contains(DateTime(2026, 9, day))),
+            reason: '$day ก.ย. ต้องถูกลบ');
       }
       expect(after.history.length, lessThanOrEqualTo(docHistoryDays));
     });
@@ -510,10 +520,18 @@ void main() {
       expect(overOf(2101), isTrue);
     });
 
-    test('DECIDED_R2_Q4_history_7_days_includes_today', () {
-      // ตัดรอบเข้าวันที่ 20 → 7 วันรวมวันนี้ = 14..20 · ประวัติเก็บ 14..19 (6 วัน) วันที่ 13 ถูกลบ
+    test('DECIDED_R2_Q4_Q19_history_30_days_includes_today', () {
+      // เดิม (food R2-Q4) 7 วันรวมวันนี้ → DECIDED 7day Q-19: 30 วันรวมวันนี้ (วันนี้ + 29 วันก่อนหน้า)
+      // ตัดรอบเข้าวันที่ 31 ต.ค. → 30 วันรวมวันนี้ = 2–31 ต.ค. · ประวัติเก็บ 2–30 ต.ค. (29 วัน)
+      // 1 ต.ค. และ ก.ย. ถูกลบ
       final history = [
-        for (var day = 10; day <= 18; day++)
+        for (var day = 25; day <= 30; day++)
+          DailyFoodRecord(
+              date: DateTime(2026, 9, day),
+              totalCalories: 1000,
+              targetCalories: 2000,
+              isOverTarget: false),
+        for (var day = 1; day <= 29; day++)
           DailyFoodRecord(
               date: d(day),
               totalCalories: 1000,
@@ -521,14 +539,46 @@ void main() {
               isOverTarget: false),
       ];
       final s = FoodState(
-          day: d(19), totalCalories: 1900, history: history, lastSeenAt: t(19, 20));
+          day: d(30), totalCalories: 1900, history: history, lastSeenAt: t(30, 20));
       final after =
-          FoodLogic.applyDayRollover(s, t(20, 6), targetCalories: 2000);
+          FoodLogic.applyDayRollover(s, t(31, 6), targetCalories: 2000);
       final days = after.history.map((r) => r.date).toList();
-      expect(days, [for (var day = 14; day <= 19; day++) d(day)]);
-      expect(days, isNot(contains(d(13))));
-      expect(after.day, d(20));
-      expect(days.length + 1, docHistoryDays, reason: 'ประวัติ 6 วัน + วันนี้ = 7');
+      expect(days, [for (var day = 2; day <= 30; day++) d(day)]);
+      expect(days, isNot(contains(d(1))));
+      expect(after.day, d(31));
+      expect(days.length + 1, docHistoryDays,
+          reason: 'ประวัติ 29 วัน + วันนี้ = 30');
+    });
+
+    test('DECIDED_Q19_EDGE_day_30_back_kept_day_31_dropped_rolling', () {
+      // ขอบ: วันนี้ 31 ต.ค. → วันที่ 30 ย้อนหลัง (รวมวันนี้) = 2 ต.ค. ยังอยู่ · วันที่ 31 = 1 ต.ค. ถูกตัด
+      DailyFoodRecord rec(DateTime date) => DailyFoodRecord(
+          date: date, totalCalories: 1000, targetCalories: 2000, isOverTarget: false);
+      final s = FoodState(
+          day: d(30),
+          totalCalories: 1500,
+          history: [rec(d(1)), rec(d(2))],
+          lastSeenAt: t(30, 20));
+      final oct31 =
+          FoodLogic.applyDayRollover(s, t(31, 6), targetCalories: 2000);
+      var days = oct31.history.map((r) => r.date).toSet();
+      expect(days, contains(d(2)), reason: 'วันที่ 30 ย้อนหลัง (รวมวันนี้) ต้องยังอยู่');
+      expect(days, isNot(contains(d(1))), reason: 'วันที่ 31 ย้อนหลัง ต้องถูกตัด');
+      expect(days, contains(d(30)));
+
+      // 1 พ.ย. 04:59:59 ยังเป็นรอบวัน 31 ต.ค. → 2 ต.ค. ยังเป็นวันที่ 30 ย้อนหลัง ยังอยู่
+      final before = FoodLogic.applyDayRollover(
+          oct31, DateTime(2026, 11, 1, 4, 59, 59), targetCalories: 2000);
+      days = before.history.map((r) => r.date).toSet();
+      expect(days, contains(d(2)), reason: '04:59:59 ยังไม่ข้ามรอบ');
+
+      // 1 พ.ย. 05:00:00 ข้ามรอบ → 2 ต.ค. กลายเป็นวันที่ 31 ย้อนหลัง ถูกตัด · 30 ต.ค. ยังอยู่
+      final nov1 = FoodLogic.applyDayRollover(
+          before, DateTime(2026, 11, 1, 5), targetCalories: 2000);
+      days = nov1.history.map((r) => r.date).toSet();
+      expect(nov1.day, DateTime(2026, 11, 1));
+      expect(days, isNot(contains(d(2))), reason: 'เลื่อนหน้าต่าง 30 วันตามวันใหม่');
+      expect(days, contains(d(30)));
     });
 
     test('DECIDED_R2_Q6_median_half_rounds_up', () {

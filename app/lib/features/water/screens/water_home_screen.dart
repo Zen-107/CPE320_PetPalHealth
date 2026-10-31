@@ -9,6 +9,8 @@ import '../../food/food_controller.dart';
 import '../../food/food_repository.dart';
 import '../../food/food_rules.dart';
 import '../../food/screens/food_dashboard_screen.dart';
+import '../../seven_day/screens/seven_day_history_screen.dart';
+import '../../seven_day/seven_day_rules.dart';
 import '../../signup/signup_rules.dart';
 import '../../steps/screens/steps_dashboard_screen.dart';
 import '../../steps/steps_controller.dart';
@@ -185,6 +187,22 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
     );
   }
 
+  /// เปิด S-1 ของ 7day (docs/7day/ui-spec.md §2.0, D-5) — controller ตัวเดียวกับที่ส่งให้
+  /// steps / food / dashboard (7day ไม่เก็บข้อมูลเอง)
+  void _openSevenDay() {
+    final steps = _stepsController();
+    final food = _foodController();
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SevenDayHistoryScreen(
+          waterController: _controller,
+          stepsController: steps,
+          foodController: food,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -212,6 +230,15 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
             onPressed: _openDashboard,
             icon: const Icon(Icons.dashboard, size: 24),
             tooltip: DashboardRules.entryTooltip,
+          ),
+          // 7day ui-spec §2.0: ต่อจาก dashboard_entry_button ก่อน water_monthly_report_button
+          // DECIDED (owner 7day รอบ 2, Q-1): IconButton ตัวที่ 5 — 5 × 48 = 240 dp ไม่ล้นที่ 360 dp
+          // (IconButton ไม่ขยายตาม textScaler · title ตัด ellipsis ตาม default ของ AppBar)
+          IconButton(
+            key: const Key('seven_day_entry_button'),
+            onPressed: _openSevenDay,
+            icon: const Icon(Icons.history, size: SevenDayRules.entryIconSize),
+            tooltip: SevenDayRules.entryTooltip,
           ),
           // DECIDED (owner dashboard รอบ 3 ข้อ 7): ปุ่มรายงานเป็นปุ่มไอคอน + tooltip
           // 「รายงานรายเดือน」 (key เดิม) — AppBar 4 ปุ่มไอคอนไม่ล้นจอ 360 dp ทุก textScaler

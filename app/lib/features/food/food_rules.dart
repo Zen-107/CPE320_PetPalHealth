@@ -97,9 +97,11 @@ class FoodRules {
   static const double toastAnchorOffset = 12;
 
   /// HISTORY_RETENTION_DAYS — จำนวนวันประวัติย้อนหลัง (US-1, US-5)
-  // ASSUMPTION: 7 วันนับรวมรอบวันปัจจุบัน (วันนี้ + 6 วันก่อนหน้า) ให้ตรงกับโครง
-  // Day 0–Day 6 ของฟีเจอร์ 7day — ประวัติที่เก่ากว่านั้นถูกลบตอนตัดรอบวัน
-  static const int historyRetentionDays = 7;
+  /// นับรวมรอบวันปัจจุบัน (วันนี้ + 29 วันก่อนหน้า) — ประวัติที่เก่ากว่านั้นถูกลบตอนตัดรอบวัน
+  // DECIDED (owner 7day รอบ 1 + รอบ 2 Q-19, 2026-10-31): เก็บประวัติ 30 วัน
+  // (docs/7day/game-rules.md §1 LOCAL_CACHE_RETENTION_DAYS = 30, ui-spec D-3) — เปลี่ยนจาก 7
+  // ใช้กับ food เท่านั้น · water / steps ไม่ตัดประวัติเหมือนเดิม · 7day อ่านแค่ 7 วันล่าสุด
+  static const int historyRetentionDays = 30;
 
   // ---------------------------------------------------------------------------
   // ui-spec §1.3 ขนาด / ระยะ (ไม่ใช่กติกาเกม — ค่าหน้าตา)

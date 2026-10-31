@@ -34,7 +34,10 @@ const int docFallbackCalories = 300;
 const int docEatingSeconds = 2;
 const int docToastSeconds = 5;
 const double docToastAnchor = 12;
-const int docHistoryDays = 7;
+/// ประวัติ food เก็บ 30 วัน "นับรวมวันนี้" (วันนี้ + 29 วันก่อนหน้า)
+/// DECIDED (owner 7day รอบ 1 "food เก็บประวัติ 30 วัน" + รอบ 2 Q-19 เฉพาะ food + รอบ 3 สมมติฐาน dev
+/// ข้อ 2 "30 วันนับรวมวันนี้") — เดิม 7 (food R2-Q4)
+const int docHistoryDays = 30;
 const double docBmiUnder = 18.5;
 const double docBmiOver = 23.0;
 const int docBmiBonus = 400;
