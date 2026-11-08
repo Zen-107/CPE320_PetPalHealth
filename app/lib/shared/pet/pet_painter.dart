@@ -75,9 +75,23 @@ class PetCharacterPainter extends CustomPainter {
 
   /// The derpy open eyes (cross-eyed pupils of different sizes, character.md
   /// §4.1) are drawn this frame — any open-eye mood face, not blink / funny /
-  /// cheer, and not the closed food-coma eyes of `full`.
+  /// cheer, not the closed food-coma eyes of `full`, and not the wink (its
+  /// one open eye looks straight at the viewer).
   bool get isDerpyEye =>
-      action == PetAction.none && face != PetFace.blink && !_eyesShut;
+      action == PetAction.none &&
+      face != PetFace.blink &&
+      !_eyesShut &&
+      expression != PetExpression.wink;
+
+  /// The wink face is drawn this frame: left eye open, right eye a thick
+  /// "^", puckered kiss lips (kept while blinking — the "^" stays; hidden
+  /// during jump / cheer).
+  bool get isWinking =>
+      action == PetAction.none && expression == PetExpression.wink;
+
+  /// The little kiss heart next to the head is drawn this frame (wink;
+  /// kept while blinking; hidden during jump / cheer).
+  bool get showsKissHeart => isWinking;
 
   /// The expression itself keeps both eyes shut (`full`).
   bool get _eyesShut {
@@ -182,6 +196,7 @@ class PetCharacterPainter extends CustomPainter {
       PetExpression.crying => PetFace.crying,
       PetExpression.dazed => PetFace.dazed,
       PetExpression.cheerful => PetFace.cheerful,
+      PetExpression.wink => PetFace.wink,
     };
   }
 
@@ -373,6 +388,7 @@ class PetCharacterPainter extends CustomPainter {
     final cheekAlpha = switch (expression) {
       PetExpression.critical => 0.30,
       PetExpression.tired => 0.55,
+      PetExpression.wink => 0.95,
       _ => 0.9,
     };
     final cheekPaint = Paint()
@@ -419,6 +435,9 @@ class PetCharacterPainter extends CustomPainter {
 
     // 12. sweat drops
     if (showsSweat) _paintSweat(canvas, g);
+
+    // 12b. kiss heart (wink)
+    if (showsKissHeart) _paintKissHeart(canvas, g);
 
     // 13. sparkles
     if (showsSparkles) _paintSparkles(canvas, g);
@@ -687,8 +706,12 @@ class PetCharacterPainter extends CustomPainter {
   // ------------------------------------------------------------------ eyes
   void _paintEyes(Canvas canvas, _Geo g) {
     final r = PetProportions.bumpRadius * PetProportions.scleraFactor;
-    // faces whose eyes are shut anyway keep their own eyes during a blink
-    final f = face == PetFace.blink && _eyesShut ? _expressionFace : face;
+    // faces whose eyes are shut anyway keep their own eyes during a blink;
+    // the wink keeps its "^" and only the open eye blinks
+    final f = face == PetFace.blink &&
+            (_eyesShut || expression == PetExpression.wink)
+        ? _expressionFace
+        : face;
     for (final side in const [-1.0, 1.0]) {
       final e = side < 0 ? g.leftEye : g.rightEye;
       final (left, right) = eyeSpecs;
@@ -761,6 +784,14 @@ class PetCharacterPainter extends CustomPainter {
             false,
             _stroke(0.03),
           );
+        case PetFace.wink:
+          // left: wide open, looking at the viewer (blinks via _openEye);
+          // right: the wink "^"
+          if (side < 0) {
+            _openEye(canvas, e, r, spec, side);
+          } else {
+            _winkEye(canvas, e, r);
+          }
         case PetFace.critical:
           _openEye(canvas, e, r, spec, side);
           // eye bags
@@ -840,6 +871,22 @@ class PetCharacterPainter extends CustomPainter {
     canvas.restore();
     canvas.drawOval(sclera, _stroke(0.014));
     if (lidEdge != null) canvas.drawPath(lidEdge, _stroke(0.022));
+  }
+
+  /// Winking eye: a thick pointed "^" (arched up, ends low) — the opposite
+  /// curve of the sleepy "‿", and thicker than the cheer "^" so it reads
+  /// at small sizes.
+  void _winkEye(Canvas canvas, Offset e, double r) {
+    final apex = e.translate(0, -r * 0.40);
+    canvas.drawPath(
+      Path()
+        ..moveTo(e.dx - r * 0.74, e.dy + r * 0.32)
+        ..quadraticBezierTo(
+            e.dx - r * 0.34, e.dy - r * 0.26, apex.dx, apex.dy)
+        ..quadraticBezierTo(
+            e.dx + r * 0.34, e.dy - r * 0.26, e.dx + r * 0.74, e.dy + r * 0.32),
+      _stroke(PetProportions.winkStroke),
+    );
   }
 
   void _closedEye(Canvas canvas, Offset e, double r) {
@@ -954,6 +1001,8 @@ class PetCharacterPainter extends CustomPainter {
             ..quadraticBezierTo(cx, my + 0.065, cx + 0.11, my - 0.005),
           _stroke(0.02),
         );
+      case PetFace.wink:
+        _kissMouth(canvas, cx, my);
       case PetFace.funny:
         final mouth = Rect.fromCenter(
             center: Offset(cx, my + 0.02), width: 0.13, height: 0.10);
@@ -995,6 +1044,42 @@ class PetCharacterPainter extends CustomPainter {
     );
     canvas.restore();
     canvas.drawOval(mouth, _stroke(0.018));
+  }
+
+  /// Puckered "3" kiss lips (wink): two round lobes bulging to the right
+  /// with a notch line between them, filled [PetColors.lips].
+  void _kissMouth(Canvas canvas, double cx, double my) {
+    const a = PetProportions.kissLobeRadius;
+    final x0 = cx + 0.010;
+    final y0 = my + 0.032;
+    final lips = Path.combine(
+      PathOperation.union,
+      Path()
+        ..addRRect(RRect.fromLTRBR(x0 - a * 0.85, y0 - a * 1.45, x0,
+            y0 + a * 1.45, const Radius.circular(a * 0.80))),
+      Path.combine(
+        PathOperation.union,
+        Path()
+          ..addOval(Rect.fromCircle(
+              center: Offset(x0, y0 - a * 0.88), radius: a)),
+        Path()
+          ..addOval(Rect.fromCircle(
+              center: Offset(x0, y0 + a * 0.88), radius: a)),
+      ),
+    );
+    canvas.drawPath(lips, Paint()..color = PetColors.lips);
+    // shine on the upper lobe
+    canvas.drawOval(
+      Rect.fromCenter(
+          center: Offset(x0 + a * 0.10, y0 - a * 1.20),
+          width: a * 0.70,
+          height: a * 0.42),
+      Paint()..color = PetColors.eyeWhite.withValues(alpha: 0.7),
+    );
+    canvas.drawPath(lips, _stroke(0.018));
+    // the "3" notch: a short line from the right dent into the lips
+    canvas.drawLine(Offset(x0 + a * 0.60, y0), Offset(x0 - a * 0.30, y0),
+        _stroke(0.016));
   }
 
   /// Open "D" smile with the tongue inside.
@@ -1151,6 +1236,34 @@ class PetCharacterPainter extends CustomPainter {
       1 - breath * 0.35,
       PetColors.tear,
     );
+  }
+
+  /// Small kiss heart floating up-right of the head, next to the winking
+  /// eye (kept inside a circular crop of the frame), pulsing with the breath.
+  void _paintKissHeart(Canvas canvas, _Geo g) {
+    const w = PetProportions.kissHeartSize;
+    final k = w * (1 + 0.08 * breath);
+    final c = Offset(g.cx + g.w / 2 + 0.03, g.eyeY + 0.075 - 0.008 * breath);
+    canvas.save();
+    canvas.translate(c.dx, c.dy);
+    canvas.rotate(0.22);
+    canvas.scale(k);
+    // unit heart, width 1, centred on the origin
+    final heart = Path()
+      ..moveTo(0, -0.22)
+      ..cubicTo(0, -0.44, -0.5, -0.50, -0.5, -0.12)
+      ..cubicTo(-0.5, 0.14, -0.16, 0.30, 0, 0.45)
+      ..cubicTo(0.16, 0.30, 0.5, 0.14, 0.5, -0.12)
+      ..cubicTo(0.5, -0.50, 0, -0.44, 0, -0.22)
+      ..close();
+    canvas.drawPath(heart, Paint()..color = PetColors.heart);
+    canvas.drawOval(
+      Rect.fromCenter(
+          center: const Offset(-0.24, -0.16), width: 0.20, height: 0.14),
+      Paint()..color = PetColors.eyeWhite.withValues(alpha: 0.8),
+    );
+    canvas.drawPath(heart, _stroke(0.012 / k));
+    canvas.restore();
   }
 
   /// Three "..." dots floating up-right of the head, bobbing with the

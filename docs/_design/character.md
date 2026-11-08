@@ -1,7 +1,7 @@
 # คัมภีร์ตัวละคร (Character Bible) — กบน้อย PetPal
 
 > แหล่งความจริงเรื่องหน้าตา/ท่าทางของสัตว์เลี้ยงทั้งแอป โค้ดอยู่ที่ `app/lib/shared/pet/` ค่าทุกตัวในเอกสารนี้ตรงกับ `pet_constants.dart`
-> ผู้ดูแล: Art agent (`.claude/agents/art.md`) · อัปเดตล่าสุด 2026-10-31 (รอบ 4 — ฟีเจอร์ dashboard: สีหน้า `crying` / `dazed` / `cheerful`, ลูปกระโดด `hop`, BUBBLY reuse `happy`) · รอบ 3 2026-10-30 (ฟีเจอร์ food: สีหน้า `eating` / `full` / `overfed`, รูปร่าง `stuffed`, ลูปเคี้ยว) · รอบ 2 2026-10-14 (ลุค "เอ๋อ": ตาเหล่ หนังตาตกข้างเดียว ฟองน้ำลาย · ตัวอย่างการใส่ Key §7)
+> ผู้ดูแล: Art agent (`.claude/agents/art.md`) · อัปเดตล่าสุด 2026-11-08 (รอบ 5 — ฟีเจอร์ notification-feature: สีหน้า `wink` ขยิบตาทำปากจู๋ preset `PetPose.notificationProfile` สำหรับรูปโปรไฟล์ S-1 / Person icon Android) · รอบ 4 2026-10-31 ( ฟีเจอร์ dashboard: สีหน้า `crying` / `dazed` / `cheerful`, ลูปกระโดด `hop`, BUBBLY reuse `happy`) · รอบ 3 2026-10-30 (ฟีเจอร์ food: สีหน้า `eating` / `full` / `overfed`, รูปร่าง `stuffed`, ลูปเคี้ยว) · รอบ 2 2026-10-14 (ลุค "เอ๋อ": ตาเหล่ หนังตาตกข้างเดียว ฟองน้ำลาย · ตัวอย่างการใส่ Key §7)
 
 ## 1. ตัวละคร
 
@@ -40,6 +40,8 @@
 | `tear` | `#B4E3FB` | สายน้ำตา + หยดน้ำตา (`crying`) อ่อนกว่า `sweat` และเป็น "สาย" จึงไม่สับสนกับหยดเหงื่อ — รอบ 4 dashboard |
 | `tearOutline` | `#4A90C2` | ขอบน้ำตา และขอบหยดเหงื่อ (เดิมเป็นเลขในโค้ด ค่าเท่าเดิม) — รอบ 4 |
 | `dazedDots` | `#7E9677` | จุด "..." ลอยข้างหัว (`dazed`) — รอบ 4 dashboard |
+| `lips` | `#EC6F86` | ปากจู๋ (จุ๊บ) สองก้อนของ `wink` — ชมพูเข้มกว่า `tongue` ไม่ให้อ่านเป็นลิ้น — รอบ 5 notification |
+| `heart` | `#E8506E` | หัวใจจุ๊บดวงเล็กข้างหัว (`wink`) ขอบใช้ `outline` + ไฮไลต์ขาว — รอบ 5 notification |
 
 สีตามคำบรรยายเจ้าของใช้ตรงตามนั้น (body/feet/leaf/belly/cheek/tongue) สีอื่นเพิ่มเพื่อให้อ่านง่ายบนจอเล็ก
 
@@ -64,6 +66,8 @@
 
 ค่ารอบ 4 (dashboard): ความสูงกระโดดต่อเนื่องของ `cheerful` `hopHeight` 0.05 (cheer เดิม 0.06, แตะ 0.10) · สายน้ำตากว้าง 0.036 → 0.054 จากใต้ตา (+0.32 r) ยาวลงถึงใต้ปาก 0.13 · จุด "..." รัศมี 0.016 / 0.019 / 0.022 · รอบ 4 วาดน้ำตาหลังปาก (ทับแก้ม) และจุด "..." หลังเม็ดข้าว/ควันเรอ ก่อนใบไม้
 
+ค่ารอบ 5 (notification): เส้นตาขยิบ `^` หนา `winkStroke` 0.034 (หนากว่า cheer `^` 0.03 และเส้นขอบ 0.022 ให้อ่านออกที่ 48 px) · ปากจู๋ก้อนละรัศมี `kissLobeRadius` 0.032 (สองก้อนซ้อนแนวตั้ง จุดกลางอยู่ใต้ปาก +0.032 เยื้องขวา 0.010 รวมสูง ≈ 0.12 กว้าง ≈ 0.06) · หัวใจกว้าง `kissHeartSize` 0.10 (สูง ≈ 0.095) จุดกลางที่ (ขอบขวาตัว + 0.03, ระดับตา + 0.075) เอียง 0.22 rad → ทุกส่วนอยู่ในวงกลมครอปที่แนบกรอบ (ระยะไกลสุดจากจุดกลาง ≈ 0.47·s) · ลำดับวาด: หัวใจวาดหลังเหงื่อ ก่อนประกาย
+
 ขนาดอุปกรณ์ food (`PetProportions`): ข้าวปั้นกว้าง `foodSize` 0.20 (สูง ×0.92) จุดกลางอยู่ใต้ปาก 0.135 ยกขึ้น 0.025 ตอนอ้าปากกัด · แก้มป่อง รัศมี `cheekPuffRadius` 0.058 ยื่นออกนอกขอบหน้า (ยุบ 30% ตอนอ้าปาก) · วงรีพุง `paunchWidthFactor` 1.06 / `paunchHeight` 0.36
 
 ## 4. สีหน้า (`PetExpression` = สีหน้าหลัก, `PetFace` = หน้าที่วาดจริงในเฟรมนั้น)
@@ -87,6 +91,9 @@
 | `crying` (dashboard รอบ 4) | **ปิดแน่น** lid 1.0 วาดเป็นเส้นโค้งหนาเอียงเศร้า (ปลายนอกต่ำ) | ปิดแน่น (สมมาตร) | **อ้าปากร้องไห้กว้าง** มุมปากตกลง เห็นลิ้นข้างใน | ไม่มี | **สายน้ำตา** สองข้างไหลจากใต้ตาลงถึงแก้ม + หยดน้ำตา 1 หยดหล่นจากข้างตาซ้ายตามจังหวะหายใจ · **คิ้วกังวล** (แบบ overfed แต่ต่ำลง 0.052 ให้อยู่ในปุ่มตา) · ใบไม้ห้อยพับข้าง (1.05 rad สีปกติ ไม่เหี่ยว) · แขนห้อยแบบ tired · ตัวสีปกติ (ไม่ซีด ไม่มีเหงื่อ — ต่างจาก critical) |
 | `dazed` (dashboard รอบ 4) | **0.36** / −0.02,+0.10 / **0.24** | **0.36** / +0.06,+0.12 / **0.20** | ปาก "o" เล็กเยื้องซ้าย (อ้าค้าง) | **มี** ห้อยที่ขอบขวาของปาก o | **ตาดำจุดเล็ก** มองตรงไปข้างหน้าแบบว่างเปล่า · หนังตาตก**เท่ากันสองข้าง** 0.36 · จุด **"..."** 3 จุดลอยขึ้นขวาบนของหัว ขยับตามหายใจ · ใบไม้เอียงขี้เกียจ (0.20 + 0.10·breath) · แขนวางพุงปกติ |
 | `cheerful` (dashboard รอบ 4) | `^` | `^` | ยิ้มอ้ากว้าง เห็นลิ้น (แบบ cheer) | ไม่มี | ภาพเดียวกับ cheer แต่เป็น**สีหน้าค้าง**: ชูแขนสองข้างตลอด ประกาย 5 ดวงกระพริบตามจังหวะกระโดด แก้ม 0.95 ใบไม้โบก + **กระโดดต่อเนื่อง** (ลูป `hop`) |
+| `wink` (notification รอบ 5) | **เปิด** lid 0 / **0.00,+0.04** / **0.66** — ตาดำโตมอง**ตรงมาที่ผู้ชม** (ไม่เหล่) | **ขยิบ** lid 1.0 วาดเป็น **`^` เส้นหนา** `winkStroke` 0.034 ปลายสองข้างต่ำ ยอดแหลม (ตรงข้ามกับ ‿ ของตาง่วง/กะพริบ) | **ปากจู๋ (จุ๊บ)** สองก้อนซ้อนแนวตั้งโป่งไปทางขวาแบบเลข "3" สี `lips` ขอบ `outline` ไฮไลต์ขาวที่ก้อนบน + เส้นรอยบุ๋มกลาง | ไม่มี | **หัวใจจุ๊บ** `heart` ดวงเล็กลอยข้างตาขยิบ (ขวาบน) พองตามลมหายใจ +8% · แก้ม alpha **0.95** · แขนวางพุงปกติ ใบไม้ตั้งปกติ · ไม่มีประกาย/เหงื่อ/ฟองน้ำลาย · **ภาพคงที่ ไม่ผูกอารมณ์หรือค่าใด ๆ** |
+
+หมายเหตุ notification (รอบ 5): กะพริบตา (`face == blink`) → ตาซ้ายปิดเป็น ‿ ส่วนตาขวา**ยังเป็น `^`** ปาก หัวใจ แก้มคงเดิม · แตะ (`funny`) / cheer → หน้าตามปกติของ action หัวใจซ่อน · `isDerpyEye` = false (ตาเปิดข้างเดียวมองตรง ไม่ใช่ตาเหล่) → `hasHalfLidEye` / `hasDroopyEyes` = false
 
 หมายเหตุ dashboard: `crying` / `cheerful` ตาปิดอยู่แล้ว (lid 1.0) ตอนกะพริบ `face` = `blink` แต่ภาพตาไม่เปลี่ยน (วาดตาของสีหน้าเดิม — ใช้กับ `full` ด้วย ภาพเท่าเดิม) · ระหว่าง `funny` (แตะ) น้ำตา คิ้ว จุด "..." ฟองน้ำลาย และลูปกระโดดซ่อน/หยุดชั่วคราว · `cheer` ระหว่าง `cheerful` แทบเหมือนเดิม (ตั้งใจ — ดีใจอยู่แล้ว)
 
@@ -107,7 +114,7 @@
    - ไม่แสดงใน `proud` (MUSCLE ต้องดูมั่นใจ และมุมปากมีลิ้น+ลักยิ้มแน่นแล้ว), `tired`/`critical` (สีฟ้าในสถานะต่ำสงวนไว้ให้หยดเหงื่อ ไม่ให้สับสน และน้ำลายไหลตอนป่วยดูไม่น่ารัก), `funny`/`cheer` (เคลื่อนไหวเร็ว)
 4. ใบไม้บนหัว แก้มชมพู ลิ้นแลบ และนิสัยใจดีคงเดิม · `blink`/`funny`/`cheer` ไม่มีตาเหล่ (ตาปิด/สัญลักษณ์)
 
-ตัวตรวจในเทสต์ (getter ของ `PetCharacterPainter`): `isDerpyEye` (วาดตาเหล่เฟรมนี้ = ไม่มี action, ไม่กะพริบ และสีหน้าไม่ได้ปิดตา — `full` / `crying` / `cheerful` = false), `hasHalfLidEye` (ตาตกข้างเดียว — happy/content/proud/eating ขณะลืมตา), `showsDroolBubble` (happy/content เมื่อไม่มี action), `eyeSpecs` (ค่า `(PetEyeSpec ซ้าย, PetEyeSpec ขวา)` ของสีหน้า) · `hasDroopyEyes` = ลืมตาแบบเอ๋อ และหนังตา**ทุกข้าง** ≥ `PetDerpy.droopyLidMin` 0.45 → true เฉพาะ tired / critical / overfed (รอบ 3 เขียนเป็นกฎจากค่าตา ผลกับ 7 preset เดิมเท่าเดิม)
+ตัวตรวจในเทสต์ (getter ของ `PetCharacterPainter`): `isDerpyEye` (วาดตาเหล่เฟรมนี้ = ไม่มี action, ไม่กะพริบ และสีหน้าไม่ได้ปิดตา — `full` / `crying` / `cheerful` = false; รอบ 5 `wink` = false ด้วย), `hasHalfLidEye` (ตาตกข้างเดียว — happy/content/proud/eating ขณะลืมตา), `showsDroolBubble` (happy/content เมื่อไม่มี action), `eyeSpecs` (ค่า `(PetEyeSpec ซ้าย, PetEyeSpec ขวา)` ของสีหน้า) · `hasDroopyEyes` = ลืมตาแบบเอ๋อ และหนังตา**ทุกข้าง** ≥ `PetDerpy.droopyLidMin` 0.45 → true เฉพาะ tired / critical / overfed (รอบ 3 เขียนเป็นกฎจากค่าตา ผลกับ 7 preset เดิมเท่าเดิม)
 
 ## 5. ตารางสถานะ → ท่าทาง/สีหน้า (`PetPose` presets)
 
@@ -130,8 +137,11 @@
 | dashboard | `DAZED` (เหม่อลอย) `(30, 60]` | `PetPose.dashboardDazed` (ใหม่) | `dazed` | `normal` | `preview/dashboard_dazed.png` |
 | dashboard | `BUBBLY` (ออรุ่มเจ๊าะ) `(60, 80]` | `PetPose.dashboardBubbly` (**reuse** สีหน้า `happy` + `normal` — ภาพเดียวกับ `waterHappy`, `==` กัน) | `happy` (ตาโตเป็นประกาย ยิ้มอ้า แก้มชมพู ประกาย ฟองน้ำลาย = สดใสออดอ้อน) | `normal` | `preview/dashboard_bubbly.png` |
 | dashboard | `CHEERFUL` (ยิ้มร่าเริง) `(80, 100]` | `PetPose.dashboardCheerful` (ใหม่) | `cheerful` + ลูปกระโดด | `normal` | `preview/dashboard_cheerful.png` |
+| notification-feature | `NOTIFICATION_PROFILE` (ภาพโปรไฟล์แจ้งเตือนคงที่) ไม่มีช่วงค่า — ใช้ที่ S-1 การ์ดขอความยินยอม และ Person icon แจ้งเตือนแบบแชตบน Android (AC-36) | `PetPose.notificationProfile` (ใหม่ รอบ 5, id `normal_wink`) | `wink` (ขยิบตาทำปากจู๋ + หัวใจ) | `normal` | `preview/notification_profile.png` (160 พื้นโปร่งใส) · `notification_profile_96_circle.png` (96 ครอปวงกลม) · `notification_profile_512.png` · `notification_profile_sizes.png` · `fx_wink.png` |
 
-ภาพรวมทุกสถานะที่ขนาดจริง 160 px: `preview/all_states_160.png` (แถว 1 water happy/tired/critical + steps FAT · แถว 2 steps CHUBBY/LEAN/MUSCLE + food NORMAL · แถว 3 food EATING/OVER_LIMIT/OVER_LIMIT_FEEDING + dashboard CRYING · แถว 4 dashboard DAZED/BUBBLY/CHEERFUL) · food 4 ท่าเรียงกัน: `preview/food_states_160.png` · dashboard 4 ท่าเรียงกัน: `preview/dashboard_states_160.png` · เฟรมพิเศษ: `fx_blink.png`, `fx_jump_funny.png`, `fx_cheer.png`, `fx_breath_in.png`, `fx_critical_sweat.png`, `fx_food_chew_cycle.png` (แถวบน eating / แถวล่าง overfed ที่ chew 0, 0.25, 0.5), `fx_dashboard_loops.png` (แถวบน cheerful ที่ hop 0, 0.25, 0.5, 0.9 · แถวล่าง crying breath 0/1 แล้ว dazed breath 0/1)
+ภาพรวมทุกสถานะที่ขนาดจริง 160 px: `preview/all_states_160.png` (แถว 1 water happy/tired/critical + steps FAT · แถว 2 steps CHUBBY/LEAN/MUSCLE + food NORMAL · แถว 3 food EATING/OVER_LIMIT/OVER_LIMIT_FEEDING + dashboard CRYING · แถว 4 dashboard DAZED/BUBBLY/CHEERFUL + notification PROFILE (รอบ 5 เติมช่องที่ 16 — 15 ช่องแรกพิกเซลเท่าเดิม)) · food 4 ท่าเรียงกัน: `preview/food_states_160.png` · dashboard 4 ท่าเรียงกัน: `preview/dashboard_states_160.png` · เฟรมพิเศษ: `fx_blink.png`, `fx_jump_funny.png`, `fx_cheer.png`, `fx_breath_in.png`, `fx_critical_sweat.png`, `fx_food_chew_cycle.png` (แถวบน eating / แถวล่าง overfed ที่ chew 0, 0.25, 0.5), `fx_dashboard_loops.png` (แถวบน cheerful ที่ hop 0, 0.25, 0.5, 0.9 · แถวล่าง crying breath 0/1 แล้ว dazed breath 0/1)
+
+ความต่างที่ต้องรักษา (notification รอบ 5): `wink` เป็นสีหน้าเดียวที่ **ตาสองข้างไม่เหมือนกันแบบเปิด-ปิด** (เปิดโตมองตรง + `^` หนา) และ**ปากเป็นก้อนชมพู**ไม่ใช่เส้น/ปากอ้า + หัวใจสีชมพูแดง — ต่างจาก cheerful/cheer (`^ ^` สองข้าง ปากยิ้มอ้า ชูแขน) และ happy (ตาเปิดสองข้าง ปาก D ประกายเหลือง) อ่านออกที่ 160 px และในวงกลม 48 px (ดู `preview/notification_profile_sizes.png`; preview ชุดนี้: `notification_profile_sizes.png` แถวบนพื้นสว่าง แถวล่างพื้นมืด คอลัมน์ 160 / วงกลม 96, 64, 48 / วงกลมซูม 1.3× 96, 48 (ไม่แนะนำ — ตัดหัวใจ) / วงกลมพื้นสีอ่อน 96, 48 / เฟรมกะพริบ · `fx_wink.png` = นิ่ง, blink 0.5, blink 1, breath 1, แตะ (funny))
 
 ความต่างที่ต้องรักษา (dashboard): 4 ระดับต่างกันที่ **ตาและสิ่งประกอบ** ก่อน (รูปร่าง `normal` เท่ากันเพราะคะแนนรวมไม่ได้บอกรูปร่าง): CRYING = ตาปิดแน่นเอียงเศร้า + **สายน้ำตาฟ้า** + ปากร้องไห้ + ใบไม้ห้อย + แขนห้อย · DAZED = **ตาดำจุดเล็ก** ปรือเท่ากันสองข้าง + ปาก o + **"..."** · BUBBLY = ตาโตเอ๋อเป็นประกาย + ยิ้ม D + ประกาย 2 ดวง (แขนวางพุง) · CHEERFUL = ตา **^ ^** + **ชูแขน** + ประกาย 5 ดวง + **กระโดดต่อเนื่อง** — ระหว่าง BUBBLY กับ CHEERFUL ต่างที่ตา (เปิด vs ^ ^) และแขน (วางพุง vs ชูขึ้น) อ่านได้ที่ 160 px แม้ภาพนิ่ง · CRYING ต่างจาก water critical: ตัวสีปกติ ไม่มีเหงื่อ ใบไม้ไม่เหี่ยว ตาปิด (critical ตาปรือมองล่าง)
 
@@ -151,6 +161,7 @@
 | เคี้ยว (food รอบ 3) | ตลอดเวลาที่ `pose.isEating` (`eating` / `overfed`) และ `animate: true` | `AnimationController` แยก (`repeat`) สร้างเมื่อ pose เป็นท่ากิน และ dispose ทันทีเมื่อเปลี่ยนเป็นท่าอื่น · `chewOpen = sin(π·chew)`: < 0.3 ปาก "ω" แก้มป่องเต็ม, ≥ 0.3 อ้าปากกัด แก้มยุบ 30% ข้าวปั้นยกขึ้นหาปาก เม็ดข้าวขยับ ใบไม้ผงก | `chew` 420 ms ต่อ 1 คำ |
 | อิ่ม (food รอบ 3) | `full` | ใช้ลมหายใจเดิม: มือตบพุงขึ้นลง ควันเรอลอยขึ้น ใบไม้แกว่ง | `breath` 2400 ms |
 | กระโดดต่อเนื่อง (dashboard รอบ 4) | ตลอดเวลาที่ `pose.isBouncing` (`cheerful`) และ `animate: true` และไม่มี action | `AnimationController` แยก (`repeat`) สร้างเมื่อ pose เป็น `cheerful` dispose ทันทีเมื่อเปลี่ยนท่า · `hopLift = sin(π·hop) × hopHeight` ลอยแล้วยืด ใกล้พื้นยุบ ใบไม้โบก ประกายกระพริบ · แตะ (jump) / cheer เล่นทับได้ตามปกติ | `hop` 760 ms ต่อ 1 กระโดด, `hopHeight` 0.05 |
+| ขยิบตาจุ๊บ (notification รอบ 5) | `wink` | **ไม่มีอนิเมชันหรือ ticker เพิ่ม** — ภาพนิ่งเป็นหลัก ถ้า `animate: true` ใช้ลมหายใจ/กะพริบเดิม: หัวใจพอง +8% ลอยขึ้น 0.008 · กะพริบปิดแค่ตาซ้าย (`^` คงที่) · แตะ/cheer เล่นได้ตามปกติ (หัวใจซ่อนระหว่างเล่น) | `breath` 2400 ms |
 | ร้องไห้ (dashboard รอบ 4) | `crying` | ใช้ลมหายใจเดิม: หยดน้ำตาหล่นลง (+0.06) และจางลง | `breath` 2400 ms |
 | เหม่อ (dashboard รอบ 4) | `dazed` | ใช้ลมหายใจเดิม: จุด "..." ลอยขึ้นลงทีละจุด ใบไม้แกว่งช้า ฟองน้ำลายพอง | `breath` 2400 ms |
 
@@ -188,13 +199,13 @@ KeyedSubtree(
 API สาธารณะ (`app/lib/shared/pet/`):
 
 - `PetCharacter` (StatefulWidget) — พารามิเตอร์ตามด้านบน; `pose` จำเป็น
-- `PetPose(expression, body = normal)` — immutable มี `==`, `id` (เช่น `fat_tired`, `stuffed_full`, `normal_crying`), `isLowState`, `isEating` (รอบ 3), `isBouncing` (รอบ 4), `copyWith`; presets `waterHappy/waterTired/waterCritical/stepsFat/stepsChubby/stepsLean/stepsMuscle` + (รอบ 3) `foodNormal/foodEating/foodOverLimit/foodOverLimitFeeding` + (รอบ 4) `dashboardCrying/dashboardDazed/dashboardBubbly/dashboardCheerful`
-- `enum PetExpression { happy, content, proud, tired, critical, eating, full, overfed, crying, dazed, cheerful }` (ตั้งชื่อเลี่ยง `PetMood` ของ water)
+- `PetPose(expression, body = normal)` — immutable มี `==`, `id` (เช่น `fat_tired`, `stuffed_full`, `normal_crying`), `isLowState`, `isEating` (รอบ 3), `isBouncing` (รอบ 4), `copyWith`; presets `waterHappy/waterTired/waterCritical/stepsFat/stepsChubby/stepsLean/stepsMuscle` + (รอบ 3) `foodNormal/foodEating/foodOverLimit/foodOverLimitFeeding` + (รอบ 4) `dashboardCrying/dashboardDazed/dashboardBubbly/dashboardCheerful` + (รอบ 5) `notificationProfile` (id `normal_wink`)
+- `enum PetExpression { happy, content, proud, tired, critical, eating, full, overfed, crying, dazed, cheerful, wink }` (ตั้งชื่อเลี่ยง `PetMood` ของ water)
 - `enum PetBodyShape { normal, fat, chubby, lean, muscle, stuffed }`
 - `enum PetAction { none, jump, cheer }` (ไม่เปลี่ยน — EATING เป็น pose ไม่ใช่ action)
-- `enum PetFace { happy, content, proud, tired, critical, blink, funny, cheer, eating, full, overfed, crying, dazed, cheerful }`
-- `PetCharacterPainter` (CustomPainter) — ฟิลด์ `pose, breath, blink, action, actionProgress, animated` + (รอบ 3) `chew` + (รอบ 4) `hop`; getter `expression, bodyShape, bodySpec, face, isBlinking, isJumping, isCheering, showsSweat, hasDroopyEyes, showsSparkles` + (รอบ 2) `isDerpyEye, hasHalfLidEye, showsDroolBubble, eyeSpecs` + (รอบ 3) `showsFood, showsPuffedCheeks, showsBurpPuff, showsWorriedBrows, chewOpen` + (รอบ 4) `showsTears, showsThoughtDots, hopLift` (`showsWorriedBrows` รวม `crying` ด้วย, `showsSparkles` รวม `cheerful`)
-- `PetColors` (+ รอบ 4 `tear`, `tearOutline`, `dazedDots`), `PetProportions` (+ รอบ 4 `hopHeight`), `PetBodySpec` (+ `bellyBulge`), `PetTiming` (+ `chew`, รอบ 4 `hop`), `PetKeys` + (รอบ 2) `PetDerpy` (+ รอบ 3 `closedLid`, `droopyLidMin`; รอบ 4 `dazed` อยู่ใน `droolExpressions`), `PetEyeSpec`
+- `enum PetFace { happy, content, proud, tired, critical, blink, funny, cheer, eating, full, overfed, crying, dazed, cheerful, wink }`
+- `PetCharacterPainter` (CustomPainter) — ฟิลด์ `pose, breath, blink, action, actionProgress, animated` + (รอบ 3) `chew` + (รอบ 4) `hop`; getter `expression, bodyShape, bodySpec, face, isBlinking, isJumping, isCheering, showsSweat, hasDroopyEyes, showsSparkles` + (รอบ 2) `isDerpyEye, hasHalfLidEye, showsDroolBubble, eyeSpecs` + (รอบ 3) `showsFood, showsPuffedCheeks, showsBurpPuff, showsWorriedBrows, chewOpen` + (รอบ 4) `showsTears, showsThoughtDots, hopLift` (`showsWorriedBrows` รวม `crying` ด้วย, `showsSparkles` รวม `cheerful`) + (รอบ 5) `isWinking, showsKissHeart` (`isDerpyEye` = false ตอน `wink`)
+- `PetColors` (+ รอบ 4 `tear`, `tearOutline`, `dazedDots`; รอบ 5 `lips`, `heart`), `PetProportions` (+ รอบ 4 `hopHeight`; รอบ 5 `winkStroke`, `kissLobeRadius`, `kissHeartSize`), `PetBodySpec` (+ `bellyBulge`), `PetTiming` (+ `chew`, รอบ 4 `hop`), `PetKeys` + (รอบ 2) `PetDerpy` (+ รอบ 3 `closedLid`, `droopyLidMin`; รอบ 4 `dazed` อยู่ใน `droolExpressions`), `PetEyeSpec`
 
 `cheerTrigger`: เล่น cheer ทุกครั้งที่ค่า **เปลี่ยน** (ไม่ใช่แค่เพิ่ม) — ฟีเจอร์ควรเก็บตัวนับใน state/controller ให้คงที่ข้าม rebuild
 
@@ -225,6 +236,38 @@ expect(painter.showsDroolBubble, isFalse);  // proud ไม่มีฟองน
 - food (รอบ 3): `animate: false` + `PetPose.foodEating` → `face == PetFace.eating`, `showsFood`, `showsPuffedCheeks`, `hasHalfLidEye` เป็น true, `chew == 0`, ไม่มี ticker · `foodOverLimitFeeding` → `face == PetFace.overfed`; `showsFood`, `showsSweat`, `hasDroopyEyes`, `showsWorriedBrows` เป็น true · `foodOverLimit` → `face == PetFace.full`, `bodyShape == PetBodyShape.stuffed`, `showsBurpPuff == true`, `isDerpyEye == false`, `showsFood == false` · `foodNormal` → `face == PetFace.content`, `showsDroolBubble == true` · `animate: true` + ท่ากิน แล้ว `pump(100ms)` → `chew > 0`; เปลี่ยนเป็นท่าไม่กิน → `chew == 0`
 
 - dashboard (รอบ 4): `animate: false` + `dashboardCrying` → `face == PetFace.crying`, `showsTears`, `showsWorriedBrows` เป็น true; `isDerpyEye`, `showsSweat`, `showsSparkles`, `showsDroolBubble` เป็น false · `dashboardDazed` → `face == PetFace.dazed`, `showsThoughtDots`, `showsDroolBubble`, `isDerpyEye` เป็น true; `hasHalfLidEye`, `hasDroopyEyes`, `showsSweat` เป็น false · `dashboardBubbly` → `== PetPose.waterHappy`, `face == PetFace.happy`, `showsSparkles`, `hasHalfLidEye` เป็น true · `dashboardCheerful` → `face == PetFace.cheerful`, `showsSparkles == true`, `isDerpyEye == false`, `hop == 0`, `hopLift == 0`, ไม่มี ticker · ทั้ง 4 ท่า `bodyShape == PetBodyShape.normal`, `isLowState == false`, `isEating == false` · `animate: true` + `dashboardCheerful` แล้ว `pump(200ms)` → `hop > 0`, `hopLift > 0`; ท่าอื่น `hop == 0` · แตะระหว่าง cheerful → `face == PetFace.funny`, `hopLift == 0`
+
+- notification (รอบ 5): `animate: false` + `PetPose.notificationProfile` → `face == PetFace.wink`, `isWinking`, `showsKissHeart` เป็น true; `isDerpyEye`, `hasHalfLidEye`, `hasDroopyEyes`, `showsDroolBubble`, `showsSparkles`, `showsSweat`, `showsTears`, `showsFood` เป็น false; `chew == 0`, `hop == 0`, ไม่มี ticker · `PetPose.notificationProfile.id == 'normal_wink'`, `isLowState`/`isEating`/`isBouncing` false · painter `blink: 1` → `face == PetFace.blink` แต่ `showsKissHeart` ยัง true · `action: PetAction.jump` → `face == PetFace.funny`, `showsKissHeart == false`
+
+```dart
+// notification-feature — S-1 การ์ดขอความยินยอม: วาดด้วย widget ตรง ๆ (ไม่ใช้ PNG)
+KeyedSubtree(
+  key: const ValueKey('notification_consent_pet_image'), // (เสนอ) ชื่อ key ให้ Dev/QA ตัดสิน
+  child: PetCharacter(
+    pose: PetPose.notificationProfile, // ภาพคงที่ ไม่เปลี่ยนตามอารมณ์
+    size: 120,                          // ขนาดบนการ์ดเป็นของ UI (อ่านออกตั้งแต่ ~48 ขึ้นไป)
+    animate: kPetAnimateByDefault,      // หรือ false = ภาพนิ่งล้วน (ขยิบอยู่แล้ว)
+    reactToTap: false,                  // ux-flow: "ไม่มีผลเมื่อกด"
+    semanticLabel: 'น้องอ๊บขยิบตา',
+  ),
+)
+
+// S-3 Android Person icon (แชต): เรนเดอร์ painter เป็นบิตแมปตอนรันแอป — ไม่มี PNG ใน assets
+// (โค้ดนี้อยู่ฝั่งฟีเจอร์ของ Dev — ตัวอย่างเท่านั้น)
+Future<Uint8List> renderNotificationAvatar({int px = 192}) async {
+  final rec = ui.PictureRecorder();
+  final canvas = Canvas(rec);
+  final s = px.toDouble();
+  canvas.clipPath(Path()..addOval(Rect.fromLTWH(0, 0, s, s))); // ครอปวงกลมเต็มกรอบ ไม่ซูม
+  const PetCharacterPainter(pose: PetPose.notificationProfile) // ภาพนิ่ง breath 0
+      .paint(canvas, Size.square(s));
+  final img = await rec.endRecording().toImage(px, px);
+  final png = await img.toByteData(format: ui.ImageByteFormat.png);
+  return png!.buffer.asUint8List(); // → ByteArrayAndroidIcon / Person(icon: ...)
+}
+```
+
+ข้อแนะนำขนาด Person icon (Art): เรนเดอร์ **192 × 192 px** (≈ 48 dp × xxxhdpi 4.0; Android ย่อเองบนจอความหนาแน่นต่ำกว่า — ไม่ต้องเรนเดอร์หลายขนาด) ครอปวงกลม**แนบกรอบทั้งภาพ ไม่ซูม** (ทุกส่วนรวมหัวใจและใบไม้อยู่ในวงกลม — ซูมเข้าจะตัดหัวใจ/ตาเปิด ดู `notification_profile_sizes.png` คอลัมน์ซูม) พื้นโปร่งใสตาม ux-flow §5 · บนธีมมืดตัวกบยังอ่านออก แต่ถ้าอยากให้เด่นขึ้นเติมวงกลมพื้นสีอ่อน (เช่น `PetColors.belly`) ก่อนวาดได้ — เป็นการตัดสินของ UI/Dev · เรนเดอร์ครั้งเดียวแล้ว cache (ภาพไม่เปลี่ยน)
 
 ```dart
 // dashboard — สถานะ game-rules §2 → pose (ตัวอย่างฝั่ง Dev; ชื่อ enum ฝั่งฟีเจอร์เป็นของ Dev)
@@ -266,3 +309,5 @@ PetPose foodPose(FoodPetState s) => switch (s) {
 8. (DECIDED — owner ชั่วคราว 2026-10-31, รอทีมยืนยัน) dashboard: สัตว์เลี้ยงใช้ `PetCharacter` (CustomPainter) ไม่ใช้ PNG — แทน `assets/images/pet_crying/dazed/bubbly/cheerful.png` และ fallback 300×300 ใน docs/dashboard/ux-flow.md §5 / game-rules.md §2; 4 อารมณ์ทำเป็น PetPose (reuse `happy` สำหรับ BUBBLY)
 9. (รอบ 4 เปิด) dashboard BUBBLY "ออรุ่มเจ๊าะ" reuse สีหน้า `happy` ตามคำสั่ง owner — ภาพเหมือน water happy ทุกประการ ถ้า Product อยากให้ "ออดอ้อน" ชัดกว่านี้ (เช่น หัวใจลอย ตาหวาน) ต้องเพิ่ม `PetExpression` ใหม่ (ไม่กระทบ API — เปลี่ยนแค่ preset)
 10. (รอบ 4 เปิด) dashboard ux-flow §5 เขียนช่วงเป็น "31-60 / 61-80 / 81-100" ส่วน game-rules §2 ใช้ `(30, 60]` ฯลฯ — เท่ากันเมื่อคะแนนเป็นจำนวนเต็ม (totalScore ปัดเป็น integer) Art ไม่ได้ใช้ตัวเลขนี้ แค่จับคู่ภาพ
+11. (DECIDED — owner 2026-11-08, ทีมตรวจตอนรีวิว PR) notification-feature: รูปโปรไฟล์กบไม่ใช้ PNG `assets/images/pet_profile_frog.png` — ใช้ `PetCharacter` ท่า `PetPose.notificationProfile` (`wink`) · S-1 วาดด้วย widget ตรง ๆ · Person icon แชต Android เรนเดอร์จาก painter เป็นภาพตอนรันแอป ไม่มี PNG ใน assets (ปิด Q-01 ของ docs/notification-feature/ — Art ไม่ได้แก้ docs ฟีเจอร์: ux-flow §2/§3/§5 และ game-rules §2 ยังอ้าง PNG)
+12. (รอบ 5 เปิด) ปากจู๋วาดเป็นสองก้อนซ้อนแนวตั้งแบบเลข "3" — ที่ 48 px อ่านเป็น "ปากชมพูจู๋" ได้ แต่รอยบุ๋มกลางหายไป ถ้า Product อยากให้ "จุ๊บ" ชัดขึ้นที่ไอคอนเล็ก (เช่น หัวใจใหญ่ขึ้น หรือมือแตะปาก) แจ้ง Art — เปลี่ยนค่าใน `PetProportions` / painter ไม่กระทบ API

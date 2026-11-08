@@ -83,6 +83,14 @@ abstract final class PetColors {
 
   /// Floating "..." dots of the dazed face.
   static const Color dazedDots = Color(0xFF7E9677);
+
+  /// Puckered "3" kiss lips of the wink face (notification profile).
+  /// Deeper rose than [tongue] so the pucker never reads as a tongue.
+  static const Color lips = Color(0xFFEC6F86);
+
+  /// Little kiss heart floating next to the wink face (notification
+  /// profile).
+  static const Color heart = Color(0xFFE8506E);
 }
 
 /// One eye of the derpy look (character.md §4.1). Values are fractions of
@@ -166,6 +174,13 @@ abstract final class PetDerpy {
     // dashboard CHEERFUL: happy "^ ^" closed eyes
     PetExpression.cheerful: (
       PetEyeSpec(lid: 1.0, pupilDx: 0.0, pupilDy: 0.0, pupil: 0.0),
+      PetEyeSpec(lid: 1.0, pupilDx: 0.0, pupilDy: 0.0, pupil: 0.0),
+    ),
+    // notification profile WINK: left eye wide open with a big pupil looking
+    // straight at the viewer (not cross-eyed); right eye winks shut — drawn
+    // as a thick "^" (never the sleepy "‿")
+    PetExpression.wink: (
+      PetEyeSpec(lid: 0.0, pupilDx: 0.0, pupilDy: 0.04, pupil: 0.66),
       PetEyeSpec(lid: 1.0, pupilDx: 0.0, pupilDy: 0.0, pupil: 0.0),
     ),
   };
@@ -353,6 +368,16 @@ abstract final class PetProportions {
 
   /// Puffed chewing cheek bulge radius.
   static const double cheekPuffRadius = 0.058;
+
+  /// Stroke of the winking "^" eye — thicker than [stroke] and the cheer
+  /// "^" (0.03) so it still reads at 48 px.
+  static const double winkStroke = 0.034;
+
+  /// Puckered kiss lips: radius of each of the two "3" lobes.
+  static const double kissLobeRadius = 0.032;
+
+  /// Kiss heart width (height ≈ width × 0.9).
+  static const double kissHeartSize = 0.10;
 }
 
 /// Animation timings (character.md §6).

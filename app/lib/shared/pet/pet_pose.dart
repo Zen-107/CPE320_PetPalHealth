@@ -49,6 +49,13 @@ enum PetExpression {
   /// Over the moon: "^ ^" eyes, wide open grin, both arms up, sparkles,
   /// waving leaf; the widget runs a continuous hop loop. (dashboard CHEERFUL)
   cheerful,
+
+  /// Wink + kiss: left eye wide open looking at the viewer, right eye winks
+  /// shut as a thick "^", puckered "3" kiss lips, rosy cheeks, a small kiss
+  /// heart. A fixed picture — not tied to any mood or value.
+  /// (notification-feature profile picture, S-1 consent card + Android
+  /// chat-style Person icon)
+  wink,
 }
 
 /// Body shape (character.md §3). Water always uses [normal].
@@ -82,6 +89,7 @@ enum PetFace {
   crying,
   dazed,
   cheerful,
+  wink,
 }
 
 /// Expression + body shape. Use the static presets for each feature state.
@@ -157,6 +165,14 @@ class PetPose {
   /// `CHEERFUL` (ยิ้มร่าเริง) `(80, 100]` — hops continuously while animating.
   static const PetPose dashboardCheerful =
       PetPose(expression: PetExpression.cheerful);
+
+  // notification-feature — docs/notification-feature/game-rules.md §2
+  /// `NOTIFICATION_PROFILE` (ภาพโปรไฟล์แจ้งเตือนคงที่): the frog winking and
+  /// puckering a kiss. One fixed picture for the S-1 consent card and the
+  /// Android chat-style Person icon (rendered from this pose at runtime —
+  /// no PNG asset). Never changes with the pet's mood.
+  static const PetPose notificationProfile =
+      PetPose(expression: PetExpression.wink);
 
   /// Eating faces hold food and chew (the widget runs a chew loop).
   bool get isEating =>
