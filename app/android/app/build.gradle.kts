@@ -6,10 +6,14 @@ plugins {
 
 android {
     namespace = "com.petpal.petpal_health"
+    // notification: DECIDED (owner 2026-11-08 รอบ 2) pin flutter_local_notifications 22.3.3
+    // ที่ใช้ compileSdk 36 (= ค่าของ Flutter) — ไม่ต้องใช้ SDK 37
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // notification (ui-spec §5): flutter_local_notifications ต้องใช้ desugaring
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -46,4 +50,9 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // notification (ui-spec §5): desugaring สำหรับ flutter_local_notifications
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

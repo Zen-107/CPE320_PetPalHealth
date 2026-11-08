@@ -21,6 +21,12 @@ class SignupController extends ChangeNotifier {
 
   final AuthRepository _repository;
 
+  /// เรียกหลังออกจากระบบ (ก่อนแจ้ง SignupGate) — null = พฤติกรรมเดิม
+  // DECIDED (owner 2026-11-08, notification Q-28): main.dart ผูกกับ
+  // NotificationController.onSignedOut → ยกเลิกแจ้งเตือนที่ตั้งไว้ทั้งหมด + ล้างแผนของวัน
+  // (ไม่เปลี่ยน consent / สวิตช์) · เข้าระบบใหม่และเข้า Home แล้วจึงวางแผนใหม่
+  Future<void> Function()? onSignedOut;
+
   bool _isLoaded = false;
   AuthSession? _session;
   bool _forceOnboarding = false;
@@ -144,6 +150,14 @@ class SignupController extends ChangeNotifier {
     await _repository.signOut();
     _session = null;
     _forceOnboarding = false;
+    final hook = onSignedOut;
+    if (hook != null) {
+      try {
+        await hook();
+      } catch (_) {
+        // ASSUMPTION: ยกเลิกแจ้งเตือนไม่สำเร็จไม่ขวางการออกจากระบบ
+      }
+    }
     notifyListeners();
   }
 }

@@ -8,6 +8,9 @@ import '../../food/food_controller.dart';
 import '../../food/screens/food_profile_screen.dart';
 import '../../food/widgets/food_profile_cta_banner.dart';
 import '../../food/widgets/food_shared_min_height_box.dart';
+import '../../notification/notification_controller.dart';
+import '../../notification/notification_rules.dart';
+import '../../notification/screens/notification_settings_screen.dart';
 import '../../steps/steps_controller.dart';
 import '../../water/water_controller.dart';
 import '../dashboard_controller.dart';
@@ -27,6 +30,7 @@ class DashboardScreen extends StatefulWidget {
     required this.foodController,
     this.animatePet,
     this.timerFactory,
+    this.notificationController,
   });
 
   final WaterController waterController;
@@ -39,6 +43,10 @@ class DashboardScreen extends StatefulWidget {
 
   /// Timer หมุนข้อความ (alertInterval) — null = `Timer` จริง (widget test ใช้ `pump(Duration)`)
   final DashboardTimerFactory? timerFactory;
+
+  /// ทางเข้า S-2 ของ notification (notification ui-spec §2.0, DECIDED owner 2026-11-08 D-2)
+  /// — null = ไม่มีปุ่มตั้งค่าบน AppBar (พฤติกรรมเดิม)
+  final NotificationController? notificationController;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -92,6 +100,15 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (state == AppLifecycleState.resumed) _controller.refreshDay();
   }
 
+  /// notification ui-spec §2.0 → S-2 (แบบ _openFoodProfile)
+  void _openNotificationSettings(NotificationController notification) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => NotificationSettingsScreen(controller: notification),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -100,6 +117,20 @@ class _DashboardScreenState extends State<DashboardScreen>
           DashboardRules.screenTitle,
           key: Key('dashboard_header_text'),
         ),
+        // DECIDED (owner 2026-11-08, notification D-2): ปุ่มตั้งค่าแจ้งเตือนปุ่มเดียว (ขวาสุด)
+        // tooltip = หัวข้อ S-2 (ASSUMPTION: notification ui-spec Q-04)
+        actions: [
+          if (widget.notificationController case final notification?)
+            IconButton(
+              key: const Key('notification_settings_entry_button'),
+              onPressed: () => _openNotificationSettings(notification),
+              icon: const Icon(
+                Icons.settings,
+                size: NotificationRules.entryIconSize,
+              ),
+              tooltip: NotificationRules.settingsTitle,
+            ),
+        ],
       ),
       body: ListenableBuilder(
         listenable: _controller,

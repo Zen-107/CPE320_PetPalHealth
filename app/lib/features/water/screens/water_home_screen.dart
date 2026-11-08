@@ -9,6 +9,9 @@ import '../../food/food_controller.dart';
 import '../../food/food_repository.dart';
 import '../../food/food_rules.dart';
 import '../../food/screens/food_dashboard_screen.dart';
+import '../../notification/notification_controller.dart';
+import '../../notification/notification_models.dart';
+import '../../notification/widgets/notification_consent_card.dart';
 import '../../seven_day/screens/seven_day_history_screen.dart';
 import '../../seven_day/seven_day_rules.dart';
 import '../../signup/signup_rules.dart';
@@ -33,6 +36,7 @@ class WaterHomeScreen extends StatefulWidget {
     this.foodController,
     this.animatePet,
     this.welcomeName,
+    this.notificationController,
   });
 
   final WaterController controller;
@@ -51,6 +55,11 @@ class WaterHomeScreen extends StatefulWidget {
   /// ประมวลผลแล้ว (AC-5); null = ไม่แสดงแบนเนอร์ (พฤติกรรมเดิมของ water)
   final String? welcomeName;
 
+  /// ฟีเจอร์แจ้งเตือน (notification ui-spec §2.1, §2.2, §2.3.3) — S-1 การ์ดขอความยินยอม,
+  /// deep link จากการกดแจ้งเตือน, เช็กสิทธิ์ตอน resume และส่งต่อให้ dashboard (ปุ่ม S-2)
+  /// null = ไม่มีการ์ด / deep link (พฤติกรรมเดิมของ water)
+  final NotificationController? notificationController;
+
   @override
   State<WaterHomeScreen> createState() => _WaterHomeScreenState();
 }
@@ -66,6 +75,10 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
   StepsController? _ownedStepsController;
   FoodController? _ownedFoodController;
 
+  // notification ui-spec §2.1 — กันเปิดการ์ด S-1 ซ้อน (rebuild ระหว่างการ์ดเปิดอยู่)
+  bool _consentDialogOpen = false;
+  bool _deepLinkScheduled = false;
+
   // ASSUMPTION: ตรวจรีเซ็ต 05:00 น. ทุก 1 นาทีระหว่างเปิดแอปค้างไว้
   // (AC-5 กำหนดเฉพาะตอนเปิดแอป ส่วนนี้ทำให้หน้าจอรีเซ็ตเองแม้แอปเปิดค้างข้าม 05:00 น.)
   static const Duration _resetCheckInterval = Duration(minutes: 1);
@@ -76,15 +89,28 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    final Future<void> waterReady;
     if (!_controller.isLoaded) {
-      _controller.load();
+      waterReady = _controller.load();
     } else {
-      _controller.refreshDailyReset();
+      waterReady = _controller.refreshDailyReset();
     }
     _resetTimer = Timer.periodic(
       _resetCheckInterval,
       (_) => _controller.refreshDailyReset(),
     );
+    final notification = widget.notificationController;
+    if (notification != null) {
+      notification.addListener(_onNotificationChanged);
+      _controller.addListener(_onNotificationChanged);
+      // เข้า Home → วางแผนรอบวันปัจจุบัน (EC-14) หลัง water โหลดเสร็จ (ไม่โหลด water ซ้อน)
+      // DECIDED (owner 2026-11-08, Q-28): หลังออกจากระบบ วางแผนใหม่เมื่อเข้า Home อีกครั้ง
+      waterReady.then((_) {
+        if (mounted) notification.start();
+      });
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _onNotificationChanged());
+    }
   }
 
   @override
@@ -92,6 +118,12 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
     _resetTimer?.cancel();
     _ownedStepsController?.dispose();
     _ownedFoodController?.dispose();
+    final notification = widget.notificationController;
+    if (notification != null) {
+      notification.removeListener(_onNotificationChanged);
+      _controller.removeListener(_onNotificationChanged);
+      notification.stop();
+    }
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -101,6 +133,91 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
     // กลับมาเปิดแอปอีกครั้ง → ตรวจรีเซ็ตทันที (AC-5, EC-2)
     if (state == AppLifecycleState.resumed) {
       _controller.refreshDailyReset();
+      // notification ui-spec §2.2: อ่านสิทธิ์ใหม่ตอนกลับมา (EC-10, Q-23)
+      widget.notificationController?.onAppResumed();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // notification: S-1 การ์ดขอความยินยอม + deep link (ui-spec §2.1, §2.3.3)
+  // ---------------------------------------------------------------------------
+
+  void _onNotificationChanged() {
+    final notification = widget.notificationController;
+    if (notification == null || !mounted) return;
+    // AC-1 / AC-4: แสดงเฉพาะ consent_status == UNANSWERED (เปลี่ยนครั้งเดียวเมื่อกดปุ่ม)
+    if (notification.isLoaded &&
+        notification.consentStatus == NotificationConsentStatus.unanswered &&
+        !_consentDialogOpen) {
+      _consentDialogOpen = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showConsentCard());
+      WidgetsBinding.instance.ensureVisualUpdate();
+    }
+    // ASSUMPTION: ui-spec Q-16 — deep link ค้างไว้จน Home โหลดเสร็จ · รอการ์ด S-1 ปิดก่อน
+    // (popUntil จะปิดการ์ดโดยไม่มีคำตอบ)
+    if (notification.pendingDeepLink != null &&
+        _controller.isLoaded &&
+        !_consentDialogOpen &&
+        !_deepLinkScheduled) {
+      _deepLinkScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _deepLinkScheduled = false;
+        _openDeepLink();
+      });
+      WidgetsBinding.instance.ensureVisualUpdate();
+    }
+  }
+
+  Future<void> _showConsentCard() async {
+    final notification = widget.notificationController;
+    if (!mounted ||
+        notification == null ||
+        notification.consentStatus != NotificationConsentStatus.unanswered) {
+      _consentDialogOpen = false;
+      // BUG-NOTI-2 (Dev รอบ 3): ตอบการ์ดแล้ว → ตรวจ deep link ที่ค้างอีกครั้ง (Q-16, EC-13)
+      if (mounted) _onNotificationChanged();
+      return;
+    }
+    await showNotificationConsentCard(
+      context,
+      notification,
+      animatePet: widget.animatePet,
+    );
+    _consentDialogOpen = false;
+    if (mounted) _onNotificationChanged();
+  }
+
+  /// ui-spec §2.3.3 — กันหน้าซ้อน (EC-2): popUntil(isFirst) แล้ว push ไม่เกิน 1 หน้า
+  /// stack หลังกด = [Home] (น้ำ) หรือ [Home, ปลายทาง] (เดิน / อาหาร) เสมอ
+  // ASSUMPTION: ui-spec Q-17 — หน้าที่เปิดค้างอยู่ (เช่น S-2, dashboard) ถูกปิด
+  void _openDeepLink() {
+    final notification = widget.notificationController;
+    if (!mounted ||
+        notification == null ||
+        !_controller.isLoaded ||
+        _consentDialogOpen) {
+      return;
+    }
+    final topic = notification.takePendingDeepLink();
+    if (topic == null) return;
+    final navigator = Navigator.of(context);
+    navigator.popUntil((route) => route.isFirst);
+    switch (topic) {
+      case NotificationTopic.walk:
+        navigator.push(
+          MaterialPageRoute<void>(
+            builder: (_) => StepsDashboardScreen(controller: _stepsController()),
+          ),
+        );
+      case NotificationTopic.water:
+        // หน้าน้ำ = หน้าแรก (ui-spec D-10) — popUntil อย่างเดียว
+        break;
+      case NotificationTopic.food:
+        navigator.push(
+          MaterialPageRoute<void>(
+            builder: (_) => FoodDashboardScreen(controller: _foodController()),
+          ),
+        );
     }
   }
 
@@ -156,8 +273,10 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
   }
 
   /// StepsController ตัวเดียวกันทั้งหน้า steps และ dashboard — null = สร้างเองครั้งแรกที่ใช้
+  /// notification: ใช้ตัวเดียวกับ NotificationController ถ้าไม่ได้ inject (D-9)
   StepsController _stepsController() =>
       widget.stepsController ??
+      widget.notificationController?.steps ??
       (_ownedStepsController ??= StepsController(
         repository: SharedPrefsStepsRepository(),
         waterHistory: ControllerWaterHistorySource(_controller),
@@ -166,6 +285,7 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
   /// FoodController ตัวเดียวกันทั้งหน้า food และ dashboard — null = สร้างเองครั้งแรกที่ใช้
   FoodController _foodController() =>
       widget.foodController ??
+      widget.notificationController?.food ??
       (_ownedFoodController ??= FoodController(
         repository: SharedPrefsFoodRepository(),
       ));
@@ -182,6 +302,8 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
           stepsController: steps,
           foodController: food,
           animatePet: widget.animatePet,
+          // notification ui-spec §2.0 (DECIDED owner 2026-11-08, D-2) — ปุ่มตั้งค่าบน AppBar
+          notificationController: widget.notificationController,
         ),
       ),
     );
