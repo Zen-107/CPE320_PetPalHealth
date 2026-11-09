@@ -184,8 +184,8 @@ AndroidNotificationDetails(
   NotificationRules.androidChannelId,          // 'petpal_reminders'
   NotificationRules.androidChannelName,        // 「แจ้งเตือนจากน้องอ๊บ」 (เสนอ — Q-09)
   channelDescription: NotificationRules.androidChannelDescription, // 「เตือนเรื่องการเดิน การดื่มน้ำ และการกินอาหาร」 (เสนอ — Q-09)
-  importance: Importance.defaultImportance,    // (ชั่วคราว — Q-09)
-  priority: Priority.defaultPriority,
+  importance: Importance.high,                 // DECIDED (owner 2026-11-09) — Q-09 heads-up มีเสียง
+  priority: Priority.high,
   category: AndroidNotificationCategory.message,
   icon: NotificationRules.androidSmallIcon,    // '@mipmap/ic_launcher' (ชั่วคราว — Q-10)
   color: Colors.lightBlue,                     // seed เดิมของ main.dart (§1.1)
@@ -198,6 +198,7 @@ AndroidNotificationDetails(
 // zonedSchedule(id, NotificationRules.senderName /* title */, message.text /* body */, ...)
 ```
 
+- **Channel `petpal_reminders` (Q-09 — DECIDED owner 2026-11-09):** `AndroidNotificationChannel(importance: Importance.high)` + รายละเอียด `Importance.high` / `Priority.high` → **เด้งบนจอ (heads-up) มีเสียง** · id channel คงเดิม — Android ไม่เปลี่ยน importance ของ channel ที่มีอยู่แล้ว เครื่องที่ติดตั้งรุ่นก่อนต้องล้างข้อมูลแอป / ติดตั้งใหม่ (ไม่ทำโค้ดย้าย channel)
 - title = 「น้องอ๊บ」, body = ข้อความ (เครื่องที่ไม่วาด MessagingStyle ยังเห็นครบ 2 ส่วน)
 - ข้อความ 1 รายการต่อ 1 แจ้งเตือน · id ไม่ซ้ำต่อรายการ (§2.4.5) — ไม่รวมเป็นกลุ่ม
 - **Avatar:** `NotificationAvatarSource` (เสนอ `notification_avatar.dart`) วาด `const PetCharacterPainter(pose: PetPose.notificationProfile)` (breath 0 = ภาพนิ่ง) ลง `ui.PictureRecorder` ขนาด `NotificationRules.avatarSizePx` (192) → `canvas.clipPath(วงรีเต็มกรอบ)` → `toImage` → PNG bytes (โค้ดตัวอย่าง character.md §7 `renderNotificationAvatar`) · **ไม่เติมพื้น** (โปร่งใส) · **แคชในหน่วยความจำ** หลังเรนเดอร์ครั้งแรก (`Future<Uint8List>` ตัวเดียวต่อ process) · เรนเดอร์ตอนตั้งเวลา (แอปเปิดอยู่) — bytes ถูกฝากไว้กับรายการที่ตั้งเวลาแล้ว ไม่ต้องใช้ engine ตอน OS ยิง · ถ้าเรนเดอร์ไม่สำเร็จ → ส่ง `Person` ไม่มี `icon` (ยังเป็นแชต มีชื่อ + ข้อความ) ไม่ล้ม
@@ -526,7 +527,7 @@ dependencies { coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 | Q-06 | B (game-rules §1.1, EC-14) | เปิดแอปครั้งแรกของวันหลังเวลาครบกำหนดแล้ว (เช่น 14:00) — ข้อความที่ "เลยเวลา" ไม่ได้ถูกเลื่อนเพราะระยะห่าง/ลำดับ ส่งหรือไม่ | ถือว่าเข้าเงื่อนไขอยู่ → ส่งได้ตั้งแต่ตอนเปิด แต่เก็บเฉพาะ**ขั้นล่าสุดที่เลยเวลาของแต่ละสาย** (น้ำ 2→4 ชม., อาหาร 12→15→18) กันข้อความกองท่วม (T-18) |
 | Q-07 | O (D-6) + B (`WALK_MAX_DELAY_MINUTES`) | "ช้าได้ไม่เกิน 60 นาที" ของเรื่องเดิน กับการถูกเลื่อนตามคิว/inexact | ไม่ตัดทิ้งเพราะช้า — ค่า 60 อยู่ใน rules เป็นเอกสาร · เทสต์ตรวจเวลาที่ตั้ง |
 | Q-08 | B (game-rules §1.1 เดิน: ใกล้เป้า) | "ส่งเมื่อ" ใกล้เป้าคือเวลาใด เมื่อตั้งเวลาล่วงหน้า | `dueAt` = เวลาที่วางแผน (ตอนตรวจพบ 80–<100%) แล้วเข้าคิวตามกติกา · ถึง ≥ 100% ก่อนส่ง → วางแผนใหม่แล้วหายไป |
-| Q-09 | UI | channel id / ชื่อ / คำอธิบาย / importance ไม่มีในเอกสาร | `petpal_reminders` · 「แจ้งเตือนจากน้องอ๊บ」 · 「เตือนเรื่องการเดิน การดื่มน้ำ และการกินอาหาร」 **(เสนอ)** · `Importance.defaultImportance` (มีเสียง ไม่เด้ง heads-up — รบกวนน้อยตาม US-5) |
+| Q-09 | UI | channel id / ชื่อ / คำอธิบาย / importance ไม่มีในเอกสาร | `petpal_reminders` · 「แจ้งเตือนจากน้องอ๊บ」 · 「เตือนเรื่องการเดิน การดื่มน้ำ และการกินอาหาร」 **(เสนอ)** · importance: **DECIDED (owner 2026-11-09)** — `Importance.high` + `Priority.high` = เด้งบนจอ (heads-up) มีเสียง (แทน `Importance.defaultImportance` เดิม) · channel id คงเดิม: เครื่องที่มี channel แล้วต้องล้างข้อมูลแอป / ติดตั้งใหม่ |
 | Q-10 | UI → Art | ไอคอนเล็กบนแถบสถานะ Android ควรเป็นภาพขาวดำ (monochrome) — แอปมีแค่ `@mipmap/ic_launcher` | ใช้ `@mipmap/ic_launcher` ชั่วคราว (บางเครื่องเห็นเป็นสี่เหลี่ยมขาว) · **งานของ Art:** ไอคอน monochrome `res/drawable` ภายหลัง |
 | Q-11 | Art (log ข้อ 2) | Person icon บนธีมมืด — เติมวงกลมพื้นสีอ่อนไหม | คงพื้นโปร่งใสตาม ux-flow §5 |
 | Q-12 | UI | repo ไม่มีโฟลเดอร์ `app/ios/` — ตั้งค่า/ทดสอบ iOS ไม่ได้รอบนี้ | เขียนกิ่ง iOS ใน Dart (`DarwinNotificationDetails`, title null) + จด setup ใน §5 · AC-37 ตรวจจากโค้ดเท่านั้น |

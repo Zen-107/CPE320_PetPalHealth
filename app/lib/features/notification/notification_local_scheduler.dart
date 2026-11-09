@@ -66,8 +66,10 @@ class LocalNotificationScheduler implements NotificationScheduler {
         NotificationRules.androidChannelId,
         NotificationRules.androidChannelName,
         description: NotificationRules.androidChannelDescription,
-        // ASSUMPTION: ui-spec Q-09 — มีเสียง ไม่เด้ง heads-up (รบกวนน้อยตาม US-5)
-        importance: Importance.defaultImportance,
+        // DECIDED (owner 2026-11-09): Q-09 เปลี่ยน — เด้งบนจอ (heads-up) importance high
+        // NOTE: Android ไม่เปลี่ยน importance ของ channel ที่สร้างไว้แล้ว (id เดิม petpal_reminders)
+        // เครื่องที่ติดตั้งรุ่นก่อนต้องล้างข้อมูลแอปหรือติดตั้งใหม่ จึงจะเด้ง — ไม่ทำโค้ดย้าย channel
+        importance: Importance.high,
       ),
     );
   }
@@ -188,8 +190,9 @@ class LocalNotificationScheduler implements NotificationScheduler {
         NotificationRules.androidChannelId,
         NotificationRules.androidChannelName,
         channelDescription: NotificationRules.androidChannelDescription,
-        importance: Importance.defaultImportance,
-        priority: Priority.defaultPriority,
+        // DECIDED (owner 2026-11-09): Q-09 heads-up — high (Android < 8 ใช้ priority)
+        importance: Importance.high,
+        priority: Priority.high,
         category: AndroidNotificationCategory.message,
         icon: NotificationRules.androidSmallIcon,
         // seed เดิมของ main.dart (ui-spec §1.1)

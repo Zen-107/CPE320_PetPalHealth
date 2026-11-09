@@ -12,6 +12,7 @@ import 'package:petpal_health/features/food/screens/food_dashboard_screen.dart';
 import 'package:petpal_health/features/notification/notification_avatar.dart';
 import 'package:petpal_health/features/notification/notification_models.dart';
 import 'package:petpal_health/features/notification/notification_repository.dart';
+import 'package:petpal_health/features/notification/notification_rules.dart';
 import 'package:petpal_health/features/notification/screens/notification_settings_screen.dart';
 import 'package:petpal_health/features/notification/widgets/notification_consent_card.dart';
 import 'package:petpal_health/features/steps/screens/steps_dashboard_screen.dart';
@@ -782,6 +783,30 @@ void main() {
       // D-6 inexact
       expect(src, contains('AndroidScheduleMode.inexactAllowWhileIdle'));
       expect(RegExp(r'AndroidScheduleMode\.(exact|alarmClock)').hasMatch(src), isFalse);
+    });
+
+    test('DECIDED_2026_11_09_Q09_channel_and_details_importance_high_heads_up', () {
+      final src =
+          File('lib/features/notification/notification_local_scheduler.dart')
+              .readAsStringSync();
+      // DECIDED (owner 2026-11-09) Q-09: channel + AndroidNotificationDetails
+      // ต้องเป็น high ทั้งคู่ (เด้งบนจอ) — ตรวจแยกในแต่ละ constructor
+      expect(
+          RegExp(r'AndroidNotificationChannel\([^;]*?importance: Importance\.high')
+              .hasMatch(src),
+          isTrue,
+          reason: 'channel petpal_reminders ต้อง Importance.high');
+      expect(
+          RegExp(r'AndroidNotificationDetails\([^;]*?importance: Importance\.high,'
+                  r'\s*priority: Priority\.high')
+              .hasMatch(src),
+          isTrue,
+          reason: 'details ต้อง Importance.high + Priority.high');
+      expect('importance: Importance.high'.allMatches(src).length, 2);
+      // channel id คงเดิม (ui-spec Q-09)
+      expect(NotificationRules.androidChannelId, 'petpal_reminders');
+      expect(src, isNot(contains('Importance.defaultImportance')));
+      expect(src, isNot(contains('Priority.defaultPriority')));
     });
 
     test('DECIDED_D5_D6_manifest_pubspec_main_setup', () {

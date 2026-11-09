@@ -1,6 +1,8 @@
-# Test report: notification-feature — แจ้งเตือนจากน้องอ๊บ (QA รอบที่ 1–3)
+# Test report: notification-feature — แจ้งเตือนจากน้องอ๊บ (QA รอบที่ 1–3 + re-check Q-09)
 
-> **รอบ 3 (20:26–20:31 หลัง Dev รอบ 4) — ผลล่าสุด:** notification 158 เทสต์ **ผ่าน 158 / ไม่ผ่าน 0** · ทั้งแอป **955 ผ่าน / 0** · analyze No issues · BUG-NOTI-1 **ปิด** · BUG-NOTI-2 ปิด · bug ที่ยังเปิด 0 — ดู §10
+> **Re-check Q-09 heads-up (2026-11-09 11:38–11:42 · DECIDED owner 2026-11-09):** notification 159 เทสต์ **ผ่าน 159 / 0** · ทั้งแอป **956 ผ่าน / 0** · analyze No issues · bug ใหม่ 0 · ยังต้องยืนยันการเด้งบนเครื่อง Android จริง — ดู §11
+
+> **รอบ 3 (20:26–20:31 หลัง Dev รอบ 4):** notification 158 เทสต์ **ผ่าน 158 / ไม่ผ่าน 0** · ทั้งแอป **955 ผ่าน / 0** · analyze No issues · BUG-NOTI-1 **ปิด** · BUG-NOTI-2 ปิด · bug ที่ยังเปิด 0 — ดู §10
 
 > **รอบ 2 (17:06–17:10 หลัง Dev รอบ 3):** notification 151 เทสต์ **ผ่าน 147 / ไม่ผ่าน 4** · ทั้งแอป **944 ผ่าน / 4 ไม่ผ่าน** · analyze No issues · BUG-NOTI-2 **ปิด** · BUG-NOTI-1 **ยังเปิด (แก้บางส่วน)** — ดู §9 (§0–§8 คือผลรอบ 1)
 
@@ -314,3 +316,56 @@ QA ไม่ได้แก้ `app/lib/`
 | Bug | รวมทั้งหมด 2 · ปิด 2 (BUG-NOTI-1 ปิดในรอบนี้, BUG-NOTI-2 ปิดตั้งแต่รอบ 2) · ยังเปิด 0 · ใหม่ 0 |
 | ถดถอยจากรอบ 1–2 | 0 — BUG-NOTI-2 และ `DECIDED_R2_*` (21:00) ผ่านทั้งหมด |
 | คำถามค้าง | 3 (10.4-1 ใหม่ · §7 ข้อ 3–4) |
+
+## 11. Re-check Q-09 — เด้งบนจอ (heads-up) (2026-11-09 11:38–11:42)
+
+**DECIDED (owner 2026-11-09): Q-09** — แจ้งเตือน Android ต้องเด้งบนจอ (heads-up) · channel `petpal_reminders` ใช้ `Importance.high` · `AndroidNotificationDetails` ใช้ `Importance.high` + `Priority.high` (แทน `defaultImportance` / `defaultPriority` เดิม)
+
+อ่าน `logs/20261109-1135_dev_notification-q09-heads-up.md` · QA ไม่ได้แก้ `app/lib/`
+
+### 11.1 ตรวจ diff
+
+- `notification_local_scheduler.dart`: เปลี่ยน 2 จุดเท่านั้น
+  - `AndroidNotificationChannel` → `importance: Importance.high`
+  - `AndroidNotificationDetails` → `importance: Importance.high`, `priority: Priority.high`
+  - นอกนั้นเปลี่ยนแค่คอมเมนต์ (ASSUMPTION Q-09 เดิม → DECIDED) · channel id / ชื่อ / คำอธิบาย / category / icon / color / MessagingStyle / iOS / inexact schedule **ไม่เปลี่ยน** — ตรงข้อตัดสิน
+- `ui-spec.md` §2.3.2 (โค้ดตัวอย่าง + bullet channel) และ §7 Q-09 สอดคล้องกันและสอดคล้องกับโค้ด · ไม่เหลือ `defaultImportance` / `defaultPriority` ใน ui-spec
+
+### 11.2 เทสต์
+
+- `DECIDED_2026_11_09_Q09_channel_and_details_importance_high_heads_up` (Dev เพิ่ม, `notification_screens_test.dart`) — QA **ปรับให้เข้มขึ้น**
+  - เดิมนับ `importance: Importance.high` รวม 2 ที่ทั้งไฟล์ ซึ่งยังผ่านได้แม้ค่าไปอยู่ผิด constructor
+  - ตอนนี้ตรวจแยกทีละ constructor (`AndroidNotificationChannel(` มี `Importance.high` · `AndroidNotificationDetails(` มี `Importance.high` + `Priority.high`) และตรวจว่า `NotificationRules.androidChannelId == 'petpal_reminders'` ตาม ui-spec Q-09
+  - ยังเก็บเงื่อนไขเดิมไว้ (มี 2 ที่ · ไม่มี `defaultImportance` / `defaultPriority`)
+- Mutation check บนสำเนาใน scratchpad (ไม่แตะ `app/lib/`)
+  - คืน channel เป็น `defaultImportance` → regex channel = false
+  - คืน priority เป็น `defaultPriority` → regex details = false
+  - เทสต์จับได้ทั้ง 2 กรณี
+- ข้อจำกัด: เป็นการตรวจระดับซอร์สเท่านั้น เพราะ `LocalNotificationScheduler` เรียก plugin จริงและเทสต์หน่วยไม่ได้ (ui-spec §2.4.6)
+
+| AC / ข้อตัดสิน | ชื่อเทสต์ | ผล |
+|---|---|---|
+| DECIDED Q-09 (owner 2026-11-09) heads-up | `DECIDED_2026_11_09_Q09_channel_and_details_importance_high_heads_up` | ผ่าน |
+| AC-36 / AC-37 / D-6 (ถดถอย) | `AC36_AC37_DECIDED_D6_local_scheduler_details_in_source` | ผ่าน |
+
+### 11.3 ผลการรัน
+
+| รายการ | ค่า |
+|---|---|
+| `flutter analyze` (11:39:54) | **No issues found! (ran in 2.4s)** |
+| `flutter test test/notification` (11:39:59) | **`00:12 +159: All tests passed!`** (158 เดิม + 1 Q-09) |
+| `flutter test` ทั้งแอป (11:40:18) | **`01:21 +956: All tests passed!`** (955 เดิม + 1) |
+| Bug ใหม่ | 0 · bug ที่ยังเปิด 0 |
+| เทสต์ที่ QA แก้เองเพราะเทสต์ผิด | 0 (ปรับเทสต์ Dev ให้เข้มขึ้น 1 ข้อ — ไม่ได้ผิด) |
+
+- รอบแรกของ QA มี analyze error 1 ข้อ (`Undefined name 'NotificationRules'`) เพราะ QA ลืม import ในเทสต์ที่แก้ ทำให้ไฟล์โหลดไม่ขึ้น · เพิ่ม import `notification_rules.dart` แล้วผ่าน · ไม่ใช่ bug ของโค้ด
+
+### 11.4 ข้อสังเกต / คำถามค้าง (ไม่นับเป็น bug)
+
+1. **ยังต้องยืนยันบนเครื่อง Android จริงหรือ emulator** ว่าแจ้งเตือนเด้งบนจอ (heads-up) และมีเสียง — เทสต์อัตโนมัติตรวจได้แค่ค่าในซอร์ส
+   - ระบบอาจไม่เด้ง แม้ตั้ง high แล้ว เช่น เมื่อเปิดห้ามรบกวน (DND) หรือเมื่อผู้ใช้ปิด "แสดงบนหน้าจอ" ของ channel
+2. **เครื่องที่ติดตั้งรุ่นก่อนต้องล้างข้อมูลแอปหรือติดตั้งใหม่**
+   - Android 8+ ไม่ให้แอปเปลี่ยน importance ของ channel ที่สร้างไปแล้ว (id `petpal_reminders` คงเดิม) จึงยังเป็นแบบไม่เด้งจนกว่าจะล้างข้อมูล
+   - ตอนทดสอบบนเครื่อง ให้ล้างข้อมูลแอปหรือติดตั้งใหม่ก่อน
+   - ถ้าต้องการให้ผู้ใช้เดิมเด้งโดยไม่ต้องล้าง ต้องเปลี่ยน channel id หรือลบ channel เดิม — owner เป็นคนตัดสิน (Dev log ระบุไว้แล้ว)
+3. ยังค้างจากรอบก่อน: §10.4-1 (AC-32 / Q-06) และ §7 ข้อ 3–4
