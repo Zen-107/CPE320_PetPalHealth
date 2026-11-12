@@ -14,6 +14,10 @@ import 'features/signup/signup_repository.dart';
 import 'features/steps/steps_controller.dart';
 import 'features/steps/steps_external.dart';
 import 'features/steps/steps_repository.dart';
+import 'features/voice/voice_controller.dart';
+import 'features/voice/voice_flutter_tts_engine.dart';
+import 'features/voice/voice_repository.dart';
+import 'features/voice/voice_tts_engine.dart';
 import 'features/water/screens/water_home_screen.dart';
 import 'features/water/water_controller.dart';
 import 'features/water/water_repository.dart';
@@ -67,6 +71,16 @@ Future<void> main() async {
   }
   // DECIDED (owner 2026-11-08, notification Q-28): ออกจากระบบ → ยกเลิกแจ้งเตือนทั้งหมด
   signupController.onSignedOut = notificationController.onSignedOut;
+  // voice: DECIDED (owner 2026-11-12, V-6, V-7) TTS ในเครื่องผ่าน flutter_tts (ไม่มี network)
+  // · แพลตฟอร์มอื่น (เช่น windows) = Noop ไม่มีเสียง ไม่มีฟอง (ASSUMPTION: voice ui-spec Q-31)
+  // · ไม่เรียก prepare() ที่นี่ (เรียกครั้งแรกเมื่อจะพูด — ไม่ถ่วงเวลาเปิดแอป)
+  final VoiceTtsEngine voiceEngine = FlutterTtsVoiceEngine.isSupportedPlatform
+      ? FlutterTtsVoiceEngine()
+      : const NoopVoiceTtsEngine();
+  final voiceController = VoiceController(
+    repository: SharedPrefsVoiceRepository(),
+    engine: voiceEngine,
+  );
   runApp(
     PetPalApp(
       waterController: waterController,
@@ -74,6 +88,7 @@ Future<void> main() async {
       signupController: signupController,
       foodController: foodController,
       notificationController: notificationController,
+      voiceController: voiceController,
     ),
   );
 }
@@ -86,6 +101,7 @@ class PetPalApp extends StatelessWidget {
     this.signupController,
     this.foodController,
     this.notificationController,
+    this.voiceController,
   });
 
   final WaterController waterController;
@@ -101,6 +117,9 @@ class PetPalApp extends StatelessWidget {
 
   /// null = ไม่มีฟีเจอร์แจ้งเตือน (พฤติกรรมเดิม — เทสต์เดิม)
   final NotificationController? notificationController;
+
+  /// null = ไม่มีฟีเจอร์เสียงพากย์ (พฤติกรรมเดิม — เทสต์เดิม) · DECIDED (owner 2026-11-12, V-5)
+  final VoiceController? voiceController;
 
   @override
   Widget build(BuildContext context) {
@@ -127,6 +146,7 @@ class PetPalApp extends StatelessWidget {
       foodController: foodController,
       welcomeName: welcomeName,
       notificationController: notificationController,
+      voiceController: voiceController,
     );
   }
 }

@@ -20,6 +20,9 @@ import '../../steps/steps_controller.dart';
 import '../../steps/steps_external.dart';
 import '../../steps/steps_repository.dart';
 import '../../steps/steps_rules.dart';
+import '../../voice/voice_controller.dart';
+import '../../voice/voice_models.dart';
+import '../../voice/widgets/voice_permission_dialog.dart';
 import '../water_controller.dart';
 import '../water_logic.dart';
 import '../water_models.dart';
@@ -37,6 +40,7 @@ class WaterHomeScreen extends StatefulWidget {
     this.animatePet,
     this.welcomeName,
     this.notificationController,
+    this.voiceController,
   });
 
   final WaterController controller;
@@ -60,6 +64,11 @@ class WaterHomeScreen extends StatefulWidget {
   /// null = ไม่มีการ์ด / deep link (พฤติกรรมเดิมของ water)
   final NotificationController? notificationController;
 
+  /// ฟีเจอร์เสียงพากย์ (voice ui-spec §2.1, §2.2) — S-1 dialog ขอเปิดเสียงครั้งแรก และส่งต่อให้
+  /// dashboard (พูด) / หน้าตั้งค่า (สวิตช์เสียง)
+  /// DECIDED (owner 2026-11-12, V-5): null = ไม่มี dialog / ไม่มีสวิตช์เสียง / ไม่พูด (พฤติกรรมเดิม)
+  final VoiceController? voiceController;
+
   @override
   State<WaterHomeScreen> createState() => _WaterHomeScreenState();
 }
@@ -78,6 +87,9 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
   // notification ui-spec §2.1 — กันเปิดการ์ด S-1 ซ้อน (rebuild ระหว่างการ์ดเปิดอยู่)
   bool _consentDialogOpen = false;
   bool _deepLinkScheduled = false;
+
+  // voice ui-spec §2.1 — กันเปิด dialog เสียงซ้อน
+  bool _voiceDialogOpen = false;
 
   // ASSUMPTION: ตรวจรีเซ็ต 05:00 น. ทุก 1 นาทีระหว่างเปิดแอปค้างไว้
   // (AC-5 กำหนดเฉพาะตอนเปิดแอป ส่วนนี้ทำให้หน้าจอรีเซ็ตเองแม้แอปเปิดค้างข้าม 05:00 น.)
@@ -111,6 +123,13 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
       WidgetsBinding.instance
           .addPostFrameCallback((_) => _onNotificationChanged());
     }
+    final voice = widget.voiceController;
+    if (voice != null) {
+      voice.addListener(_onVoiceChanged);
+      notification?.addListener(_onVoiceChanged);
+      voice.load();
+      WidgetsBinding.instance.addPostFrameCallback((_) => _onVoiceChanged());
+    }
   }
 
   @override
@@ -123,6 +142,11 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
       notification.removeListener(_onNotificationChanged);
       _controller.removeListener(_onNotificationChanged);
       notification.stop();
+    }
+    final voice = widget.voiceController;
+    if (voice != null) {
+      voice.removeListener(_onVoiceChanged);
+      notification?.removeListener(_onVoiceChanged);
     }
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -155,9 +179,11 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
     }
     // ASSUMPTION: ui-spec Q-16 — deep link ค้างไว้จน Home โหลดเสร็จ · รอการ์ด S-1 ปิดก่อน
     // (popUntil จะปิดการ์ดโดยไม่มีคำตอบ)
+    // voice ui-spec §2.1: รอ dialog เสียงปิดด้วย (popUntil จะปิด dialog โดยไม่มีคำตอบ)
     if (notification.pendingDeepLink != null &&
         _controller.isLoaded &&
         !_consentDialogOpen &&
+        !_voiceDialogOpen &&
         !_deepLinkScheduled) {
       _deepLinkScheduled = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -176,6 +202,8 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
       _consentDialogOpen = false;
       // BUG-NOTI-2 (Dev รอบ 3): ตอบการ์ดแล้ว → ตรวจ deep link ที่ค้างอีกครั้ง (Q-16, EC-13)
       if (mounted) _onNotificationChanged();
+      // voice ui-spec §2.1: การ์ดแจ้งเตือนตอบแล้ว → dialog เสียงขึ้นต่อ
+      if (mounted) _onVoiceChanged();
       return;
     }
     await showNotificationConsentCard(
@@ -184,6 +212,64 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
       animatePet: widget.animatePet,
     );
     _consentDialogOpen = false;
+    if (mounted) _onNotificationChanged();
+    // voice ui-spec §2.1: dialog เสียงขึ้นต่อหลังการ์ดแจ้งเตือนปิด
+    if (mounted) _onVoiceChanged();
+  }
+
+  // ---------------------------------------------------------------------------
+  // voice: S-1 dialog ขอเปิดเสียงครั้งแรก (voice ui-spec §2.1)
+  // ---------------------------------------------------------------------------
+
+  /// DECIDED (owner 2026-11-12, V-5): แสดงทับหน้า Home เมื่อ voice_permission_status ยังไม่ตอบ
+  // ASSUMPTION: voice ui-spec Q-17 — การ์ดแจ้งเตือนขึ้นก่อนเสมอ → รอกล่องขอสิทธิ์ OS ปิด
+  // → dialog เสียง · ไม่มี dialog ซ้อน
+  void _onVoiceChanged() {
+    final voice = widget.voiceController;
+    if (voice == null || !mounted) return;
+    if (!voice.isLoaded ||
+        voice.permissionStatus != VoicePermissionStatus.unanswered ||
+        _voiceDialogOpen ||
+        _consentDialogOpen) {
+      return;
+    }
+    final notification = widget.notificationController;
+    if (notification != null &&
+        (!notification.isLoaded ||
+            notification.consentStatus ==
+                NotificationConsentStatus.unanswered ||
+            notification.isRequestingPermission ||
+            _awaitingOsPermission(notification))) {
+      return;
+    }
+    _voiceDialogOpen = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showVoiceDialog());
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  /// ช่วงหลังกด「อนุญาต」บนการ์ดแจ้งเตือนจนกล่องขอสิทธิ์ OS จบ: สวิตช์แสดง ON ทั้งที่ระบบยังไม่
+  /// อนุญาต (`isSwitchOn` = master && (granted || รอผลกล่องขอสิทธิ์)) — อ่านจาก getter เดิม
+  /// ไม่แก้ NotificationController
+  static bool _awaitingOsPermission(NotificationController n) =>
+      n.isSwitchOn &&
+      n.systemPermission != NotificationSystemPermission.granted;
+
+  Future<void> _showVoiceDialog() async {
+    final voice = widget.voiceController;
+    if (!mounted ||
+        voice == null ||
+        voice.permissionStatus != VoicePermissionStatus.unanswered) {
+      _voiceDialogOpen = false;
+      if (mounted) _onNotificationChanged();
+      return;
+    }
+    await showVoicePermissionDialog(
+      context,
+      voice,
+      animatePet: widget.animatePet,
+    );
+    _voiceDialogOpen = false;
+    // deep link ของ notification ที่ค้างทำงานต่อ
     if (mounted) _onNotificationChanged();
   }
 
@@ -195,7 +281,8 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
     if (!mounted ||
         notification == null ||
         !_controller.isLoaded ||
-        _consentDialogOpen) {
+        _consentDialogOpen ||
+        _voiceDialogOpen) {
       return;
     }
     final topic = notification.takePendingDeepLink();
@@ -304,6 +391,8 @@ class _WaterHomeScreenState extends State<WaterHomeScreen>
           animatePet: widget.animatePet,
           // notification ui-spec §2.0 (DECIDED owner 2026-11-08, D-2) — ปุ่มตั้งค่าบน AppBar
           notificationController: widget.notificationController,
+          // voice ui-spec §2.2 — ประเมิน/พูดบน dashboard เท่านั้น (V-4)
+          voiceController: widget.voiceController,
         ),
       ),
     );

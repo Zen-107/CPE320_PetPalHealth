@@ -12,6 +12,8 @@ import '../../notification/notification_controller.dart';
 import '../../notification/notification_rules.dart';
 import '../../notification/screens/notification_settings_screen.dart';
 import '../../steps/steps_controller.dart';
+import '../../voice/voice_controller.dart';
+import '../../voice/voice_models.dart';
 import '../../water/water_controller.dart';
 import '../dashboard_controller.dart';
 import '../dashboard_logic.dart';
@@ -31,6 +33,7 @@ class DashboardScreen extends StatefulWidget {
     this.animatePet,
     this.timerFactory,
     this.notificationController,
+    this.voiceController,
   });
 
   final WaterController waterController;
@@ -47,6 +50,10 @@ class DashboardScreen extends StatefulWidget {
   /// ทางเข้า S-2 ของ notification (notification ui-spec §2.0, DECIDED owner 2026-11-08 D-2)
   /// — null = ไม่มีปุ่มตั้งค่าบน AppBar (พฤติกรรมเดิม)
   final NotificationController? notificationController;
+
+  /// เสียงพากย์น้องอ๊บ (voice ui-spec §2.2) — ประเมิน/พูดเมื่อเปิดหน้าและเมื่อค่าเปลี่ยน
+  /// DECIDED (owner 2026-11-12, V-5): null = ไม่มีการประเมิน / ไม่พูด / ไม่มีฟองบทพูด (พฤติกรรมเดิม)
+  final VoiceController? voiceController;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -76,11 +83,27 @@ class _DashboardScreenState extends State<DashboardScreen>
       const Duration(seconds: DashboardRules.dayCheckIntervalSeconds),
       (_) => _controller.refreshDay(),
     );
+    final voice = widget.voiceController;
+    if (voice != null) {
+      // DECIDED (owner 2026-11-12, V-4): ประเมินตอนเปิดหน้า และตอนค่าเปลี่ยนขณะหน้าเปิดอยู่
+      _controller.addListener(_evaluateVoice);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        voice.load().then((_) {
+          if (mounted) _evaluateVoice();
+        });
+      });
+    }
   }
 
   @override
   void dispose() {
     _dayTimer?.cancel();
+    final voice = widget.voiceController;
+    if (voice != null) {
+      // ASSUMPTION: voice ui-spec Q-13 — ออกจาก dashboard = หยุด + ล้างคิว
+      voice.stopAndClear();
+      _controller.removeListener(_evaluateVoice);
+    }
     _controller.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -95,16 +118,40 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
+  /// voice ui-spec §2.2 — เรียกซ้ำได้ (ช่วงเดิมไม่พูดซ้ำ จึงไม่เป็นไรที่ Timer alert notify ทุก 5 วินาที)
+  void _evaluateVoice() {
+    final voice = widget.voiceController;
+    if (voice == null || !mounted || !_controller.isLoaded) return;
+    voice.evaluate(_controller.input);
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _controller.refreshDay();
+    final voice = widget.voiceController;
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _controller.refreshDay();
+        // ASSUMPTION: voice ui-spec Q-13 — กลับมา → ประเมินใหม่ (ช่วงเดิมไม่พูดซ้ำ)
+        _evaluateVoice();
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+        // ASSUMPTION: voice ui-spec Q-13 — แอปไป background ระหว่างพูด = หยุด + ล้างคิว
+        voice?.stopAndClear();
+      case AppLifecycleState.detached:
+        break;
+    }
   }
 
   /// notification ui-spec §2.0 → S-2 (แบบ _openFoodProfile)
   void _openNotificationSettings(NotificationController notification) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => NotificationSettingsScreen(controller: notification),
+        builder: (_) => NotificationSettingsScreen(
+          controller: notification,
+          // DECIDED (owner 2026-11-12, V-2): สวิตช์เสียงบนสุดของหน้าตั้งค่าแจ้งเตือนเดิม
+          voiceController: widget.voiceController,
+        ),
       ),
     );
   }
@@ -133,7 +180,9 @@ class _DashboardScreenState extends State<DashboardScreen>
         ],
       ),
       body: ListenableBuilder(
-        listenable: _controller,
+        listenable: widget.voiceController == null
+            ? _controller
+            : Listenable.merge([_controller, widget.voiceController]),
         builder: (context, _) {
           if (!_controller.isLoaded) {
             return const Center(child: CircularProgressIndicator());
@@ -258,47 +307,81 @@ class _DashboardScreenState extends State<DashboardScreen>
   // วิธีนั้นทำให้ข้อความ P1 อยู่ใน widget tree เสมอ (find.text เจอ 2 ตัวตอน P1 แสดง / เจอแม้คิวว่าง)
   // จึงวัดความสูงฟอง P1 ด้วย TextPainter แล้วใช้เป็น "ความสูงขั้นต่ำ" ผ่าน FoodSharedMinHeightBox
   // (ของเดิมของ food — รองรับ IntrinsicHeight) ผลบนจอเท่ากัน: ช่องสูงเท่าฟอง P1 เสมอ และโตได้ถ้าจำเป็น
+  //
+  // voice ui-spec §2.2 #2 (ASSUMPTION: voice ui-spec Q-06): ขณะพูด ฟองบทพูด (`voice_speech_bubble`)
+  // แสดง "แทน" ฟอง alert ในช่องเดียวกัน — หนึ่งเฟรมมีฟองเดียว · Timer หมุน alert ทำงานต่อเบื้องหลัง
   Widget _buildAlertSlot(BuildContext context, DashboardAlert? alert) {
+    final speaking = widget.voiceController?.currentLine;
+    final Widget child;
+    if (speaking != null) {
+      // ไม่ใส่ Semantics(liveRegion) กันโปรแกรมอ่านจออ่านทับเสียง TTS
+      // (ASSUMPTION: voice ui-spec Q-32)
+      child = Center(
+        child: SizedBox(
+          width: double.infinity,
+          child: _AlertBubble(
+            key: const Key('voice_speech_bubble'),
+            textKey: const Key('voice_speech_text'),
+            message: speaking.text,
+          ),
+        ),
+      );
+    } else if (alert == null) {
+      child = const SizedBox.shrink();
+    } else {
+      child = Center(
+        child: SizedBox(
+          width: double.infinity,
+          child: _AlertBubble(
+            key: const Key('dashboard_alert_banner'),
+            textKey: const Key('dashboard_alert_text'),
+            message: alert.text,
+          ),
+        ),
+      );
+    }
     return FoodSharedMinHeightBox(
       key: const Key('dashboard_alert_slot'),
       minHeightFor: _alertSlotMinHeightFor(context),
-      child: alert == null
-          ? const SizedBox.shrink()
-          : Center(
-              child: SizedBox(
-                width: double.infinity,
-                child: _AlertBubble(
-                  key: const Key('dashboard_alert_banner'),
-                  textKey: const Key('dashboard_alert_text'),
-                  message: alert.text,
-                ),
-              ),
-            ),
+      child: child,
     );
   }
 
   /// ความสูงฟองข้อความ Priority 1 ที่ความกว้าง [width] (padding 16/8 + ข้อความ bodyMedium)
+  ///
+  /// voice ui-spec §2.2 (ASSUMPTION: voice ui-spec Q-07): เปิดเสียงอยู่ → วัดค่ามากสุดของ P1 กับบทพูด
+  /// ทั้ง 6 → ฟองบทพูดขึ้น/หายไม่ทำให้สัตว์เลี้ยงและแถบกระโดด · ปิดเสียง = วัด P1 อย่างเดิม
+  /// (วัดด้วย TextPainter เท่านั้น — ไม่มีข้อความซ่อนใน tree, บทเรียน dashboard D-16)
   MinHeightForWidth _alertSlotMinHeightFor(BuildContext context) {
     final theme = Theme.of(context);
     final base = DefaultTextStyle.of(context);
     final scaler = MediaQuery.textScalerOf(context);
     final direction = Directionality.of(context);
     final locale = Localizations.maybeLocaleOf(context);
+    final voice = widget.voiceController;
+    final texts = <String>[
+      DashboardAlert.overeating.text,
+      if (voice != null && voice.masterVoice)
+        for (final line in VoiceLine.values) line.text,
+    ];
     return (width) {
-      final painter = TextPainter(
-        text: TextSpan(
-          text: DashboardAlert.overeating.text,
-          style: base.style.merge(theme.textTheme.bodyMedium),
-        ),
-        textAlign: TextAlign.center,
-        textDirection: direction,
-        textScaler: scaler,
-        locale: locale,
-        textHeightBehavior: base.textHeightBehavior,
-        textWidthBasis: base.textWidthBasis,
-      )..layout(maxWidth: math.max(0, width - _AlertBubble.padH * 2));
-      final h = painter.height + _AlertBubble.padV * 2;
-      painter.dispose();
+      var h = 0.0;
+      for (final text in texts) {
+        final painter = TextPainter(
+          text: TextSpan(
+            text: text,
+            style: base.style.merge(theme.textTheme.bodyMedium),
+          ),
+          textAlign: TextAlign.center,
+          textDirection: direction,
+          textScaler: scaler,
+          locale: locale,
+          textHeightBehavior: base.textHeightBehavior,
+          textWidthBasis: base.textWidthBasis,
+        )..layout(maxWidth: math.max(0, width - _AlertBubble.padH * 2));
+        h = math.max(h, painter.height + _AlertBubble.padV * 2);
+        painter.dispose();
+      }
       return h;
     };
   }

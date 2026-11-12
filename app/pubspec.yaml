@@ -41,6 +41,8 @@ dependencies:
   flutter_local_notifications: 22.3.3
   timezone: ^0.11.2
   flutter_timezone: ^5.1.1
+  # voice: DECIDED (owner 2026-11-12, V-6, V-7) เสียงพากย์ = TTS ในเครื่อง · pin เวอร์ชันเดียว
+  flutter_tts: 4.2.5
 
 dev_dependencies:
   flutter_test:

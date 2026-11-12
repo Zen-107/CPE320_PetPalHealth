@@ -57,5 +57,10 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- voice (ui-spec §5, DECIDED owner 2026-11-12 V-7): ให้ Android 11+ มองเห็น TTS engine
+             ในเครื่อง — ไม่ใช่สิทธิ์ (ไม่มี uses-permission ใหม่) -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
     </queries>
 </manifest>
