@@ -61,8 +61,15 @@ class VoiceController extends ChangeNotifier {
   /// รุ่นของลูปเล่น — stopAndClear() เพิ่มค่า กันลูปเก่าเคลียร์ currentLine ของบทใหม่
   int _generation = 0;
 
-  /// ผลของ engine.prepare() — เรียกครั้งเดียวต่อ process (ui-spec §2.4.4)
+  /// engine.prepare() ที่กำลังทำ / ทำเสร็จแล้ว — กันเรียกซ้อน (ทุกจุดรอ Future ตัวเดียวกัน)
   Future<bool>? _ready;
+
+  /// ผลล่าสุดของ prepare(): null = ยังไม่รู้ / กำลังทำ, true = พร้อม (จำตลอด ไม่เรียกซ้ำ),
+  /// false = ไม่พร้อม (จำไว้จนกว่า dashboard สั่ง [retryEngineIfUnavailable] — V-12)
+  bool? _readyValue;
+
+  /// input ล่าสุดจาก dashboard — ใช้ประเมินใหม่เมื่อ engine เพิ่งพร้อม (V-12)
+  DashboardInput? _lastInput;
 
   bool get isLoaded => _loaded;
   VoicePermissionStatus get permissionStatus => _permission;
@@ -186,20 +193,75 @@ class VoiceController extends ChangeNotifier {
   /// DECIDED (owner 2026-11-12, V-4): เรียกจาก dashboard ตอนเปิดหน้าและตอนค่าเปลี่ยน
   /// (เรียกซ้ำได้ — ช่วงเดิมไม่พูดซ้ำ)
   // ASSUMPTION: voice ui-spec Q-08 — บันทึกช่วงเสมอแม้ปิดเสียง (เปิดเสียงทีหลังไม่มีบทย้อน)
+  ///
+  /// DECIDED (owner 2026-11-12, V-11): engine ยังไม่พร้อม (ยังไม่รู้ผล / prepare() false) → ไม่บันทึก
+  /// ช่วงที่มีบทพูดว่า "พูดแล้ว" — เก็บไว้พูดเมื่อ engine พร้อม · ปิดเสียงอยู่ → บันทึกช่วงทั้งหมด
+  /// ตาม Q-08 (ไม่เรียก prepare())
   void evaluate(DashboardInput input) {
     if (!_loaded || _disposed) return;
+    _lastInput = input;
+    if (!_master) {
+      _applyEvaluation(input, commitLineBands: true);
+      return;
+    }
+    if (_readyValue == true) {
+      _evaluateAndSpeak(input);
+      return;
+    }
+    // ยังไม่พร้อม: บันทึกเฉพาะช่วงที่ไม่มีบทพูด แล้วรอผล prepare()
+    _applyEvaluation(input, commitLineBands: false);
+    final gen = _generation;
+    unawaited(_ensureReady().then((ready) {
+      // ออกจาก dashboard / แอปไป background / ปิดเสียง ระหว่างรอ prepare() → stopAndClear()
+      // เพิ่ม generation แล้ว → ไม่พูด (บทยังไม่ถูกบันทึก จึงพูดได้เมื่อเข้า dashboard ครั้งหน้า)
+      if (!ready || _disposed || gen != _generation || !_master) return;
+      final latest = _lastInput;
+      if (latest != null) _evaluateAndSpeak(latest);
+    }));
+  }
+
+  /// DECIDED (owner 2026-11-12, V-12): prepare() ที่ได้ false ให้ลองใหม่ — dashboard เรียกตอนเข้าหน้า
+  /// และตอนแอป resumed (ก่อน [evaluate]) · ได้ true แล้วไม่เรียกซ้ำ · กำลัง prepare อยู่ = ไม่ทำอะไร
+  /// (รอผลรอบเดิม ไม่เรียกซ้อน)
+  void retryEngineIfUnavailable() {
+    if (_readyValue != false) return;
+    _readyValue = null;
+    _ready = null;
+  }
+
+  /// engine พร้อมแล้ว: ประเมิน + บันทึกช่วง + เข้าคิว (เรียกซ้ำได้ — ช่วงที่บันทึกแล้วไม่พูดซ้ำ)
+  void _evaluateAndSpeak(DashboardInput input) {
+    final lines = _applyEvaluation(input, commitLineBands: true);
+    if (!_master || lines.isEmpty) return;
+    _queue.addAll(lines); // FIFO ต่อท้ายคิว — ลำดับ water → steps → food (Q-10)
+    unawaited(_runQueue());
+  }
+
+  List<VoiceLine> _applyEvaluation(
+    DashboardInput input, {
+    required bool commitLineBands,
+  }) {
     final result = VoiceLogic.evaluate(
       input: input,
       previous: _dayBands,
       now: _clock(),
+      commitLineBands: commitLineBands,
     );
     if (result.bands != _dayBands) {
       _dayBands = result.bands;
       unawaited(_saveBands(result.bands));
     }
-    if (!_master || result.lines.isEmpty) return;
-    _queue.addAll(result.lines); // FIFO ต่อท้ายคิว
-    unawaited(_runQueue());
+    return result.lines;
+  }
+
+  /// prepare() ครั้งเดียวต่อรอบ — เรียกซ้อนได้ ทุกคนรอ Future เดียวกัน
+  Future<bool> _ensureReady() {
+    final ready = _ready ??= _prepare();
+    return ready.then((value) {
+      // ผลของรอบที่ถูกยกเลิกด้วย retryEngineIfUnavailable() ไม่ทับรอบใหม่
+      if (identical(_ready, ready)) _readyValue = value;
+      return value;
+    });
   }
 
   // ASSUMPTION: voice ui-spec Q-09 — บันทึกไม่สำเร็จ = คงในหน่วยความจำ ไม่มี UI
@@ -222,7 +284,8 @@ class VoiceController extends ChangeNotifier {
     _playing = true;
     final gen = _generation;
     try {
-      final ready = await (_ready ??= _prepare());
+      // ปกติถึงตรงนี้เมื่อ engine พร้อมแล้ว (_evaluateAndSpeak) — เช็กซ้ำเพื่อความปลอดภัย
+      final ready = await _ensureReady();
       while (!_disposed &&
           gen == _generation &&
           _master &&

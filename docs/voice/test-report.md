@@ -171,3 +171,76 @@
 | Q-QA-3 | (รอบ 1) เสียง network บน Android | **ปิดด้วย BUG-VOICE-1** ในระดับโค้ด · ยังต้องยืนยันบน emulator |
 | Q-QA-6 | เทสต์ Dev 3 ข้อ (`missing_or_unknown_network_flag`, `prefers_exact_th_TH`, `locale_prefix_th_only`) ใช้ชื่อ `DECIDED_` แต่ค่ามาจาก ASSUMPTION ของ Dev ไม่ได้อยู่ในข้อตัดสิน owner | ยอมรับค่าตามนั้น (ปลอดภัยต่อ V-6a) · ขอ owner ยืนยันตอนรีวิว PR หรือเปลี่ยนชื่อเป็น `ASSUMPTION_` |
 | Q-QA-7 | prepare() คืน false ครั้งเดียวแล้ว — ถ้าผู้ใช้ไปดาวน์โหลดเสียงไทยภายหลังขณะแอปเปิดอยู่ จะพูดเมื่อไหร่ (เอกสารไม่กล่าวถึง) | ไม่ทดสอบ · ถือว่าเริ่มแอปใหม่แล้วพูดได้ |
+
+---
+
+# QA รอบ 3 — re-check BUG-VOICE-2 (bug-fix loop 2/3 · 2026-11-12)
+
+| รายการ | ค่า |
+|---|---|
+| บั๊ก | BUG-VOICE-2 (owner พบบน emulator 16:47–16:50): ลงเสียงไทยออฟไลน์ระหว่างแอปเปิด แอปยังเงียบทั้งวัน เพราะ (1) จำผล `prepare()` = false ไว้ตลอด (2) บันทึก `voice_day_bands` ว่า "พูดแล้ว" ทั้งที่ engine ไม่พร้อม |
+| ข้อตัดสิน | DECIDED (owner 2026-11-12) **V-11** ห้ามบันทึกช่วงที่มีบทพูดเมื่อ engine ไม่พร้อม · Master Voice ปิดยังบันทึกตาม Q-08 · **V-12** prepare() false → ลองใหม่เมื่อเข้า dashboard และเมื่อ resumed · true แล้วไม่เรียกซ้ำ · พร้อมแล้วพูดบทที่ค้าง water → steps → food |
+| ที่ Dev แก้ | `voice_logic.dart` (`commitLineBands`), `voice_controller.dart` (`retryEngineIfUnavailable`, `_readyValue`), `dashboard_screen.dart` (retry ตอนเข้าหน้า / resumed) — logs/20261112-1659_dev_voice_r3.md |
+| ไฟล์ใหม่ของ QA | `app/test/voice/voice_qa_r3_engine_retry_test.dart` — 9 เทสต์ (`DECIDED_R3_*`) · ใช้ `SharedPreferences` จริง (mock store ของ plugin) · restart = snapshot storage → `setMockInitialValues` → สร้าง repository / controller / dashboard ใหม่ |
+| ผล | **BUG-VOICE-2 ปิด** · บั๊กใหม่ **0** |
+
+## ตรวจการแก้เทสต์ของ QA โดย Dev
+
+`EC3_DECIDED_V6a_no_thai_voice_silent_skip_no_bubble_ever` (`voice_qa_logic_test.dart`): Dev เปลี่ยน `bands[water]` จาก `idWaterLow` เป็น `isNull` → **ถูกต้องตาม V-11** ("engine ไม่พร้อม ห้ามบันทึกช่วงที่มีบทพูดว่าพูดแล้ว") · ค่าเดิมคือพฤติกรรมของ BUG-VOICE-2 เอง · ส่วนอื่นของเทสต์ไม่ถูกแตะ
+QA เพิ่ม 2 บรรทัดในเทสต์เดียวกัน (เข้มขึ้นตาม V-11 ไม่ใช่เพราะเทสต์ผิด): `bands[steps]` = null (steps 100% มีบท success) และ `bands[food]` = `NONE` (ช่วงไม่มีบทยังบันทึกได้)
+
+## ตรวจเทสต์ `DECIDED_V11_*` / `DECIDED_V12_*` ของ Dev (12 ข้อ ใน `voice_engine_retry_test.dart`)
+
+| เทสต์ | ที่มาของค่าคาดหวัง | สรุป |
+|---|---|---|
+| `V11_engine_unavailable_does_not_record_line_bands` | V-11 (water / steps = ไม่มี, food = NONE) | ถูก |
+| `V11_master_off_still_records_bands_without_prepare` | V-11 + Q-08 · id เป็น literal `'voice_water_low'` / `'voice_steps_lazy'` | ถูก |
+| `V11_unrecorded_lines_survive_app_restart` | V-11 (ใช้ `InMemoryVoiceRepository` ตัวเดิม ไม่ใช่ SharedPrefs จริง — QA ครอบด้วย `DECIDED_R3_restart_*`) | ถูก |
+| `V12_false_is_not_retried_without_retry_call` | V-12 (จุดลองใหม่มี 2 จุด) + ASSUMPTION 2 ของ Dev | ถูก |
+| `V12_retry_after_engine_ready_speaks_pending_once_in_order` | V-12 ลำดับ water → steps → food · prepareCount 2 | ถูก |
+| `V12_prepare_true_is_never_called_again` | V-12 "true แล้วไม่ต้องเรียกซ้ำ" | ถูก |
+| `V12_concurrent_evaluate_and_retry_share_one_prepare` | V-12 + การออกแบบกันเรียกซ้อน (ASSUMPTION) | ยอมรับ |
+| `V12_stop_during_prepare_does_not_speak_and_keeps_pending` | V-11 (ยังไม่พูด = ไม่บันทึก) + Q-13 | ถูก |
+| `V12_master_off_during_prepare_does_not_speak` | AC-8 / game-rules §1.1 (ปิดเสียง = หยุด) | ถูก |
+| `V12_dispose_during_prepare_is_safe` | V-6a "ไม่แครช" | ถูก |
+| `V12_resumed_on_dashboard_retries_and_speaks_once` (widget) | V-12 | ถูก |
+| `V12_reenter_dashboard_retries_and_speaks_once` (widget) | V-12 | ถูก |
+
+ข้อสังเกต: ข้อความที่คาดว่าจะพูดใน Dev test อ้าง `VoiceRules.waterLowText` ฯลฯ (ค่าคงที่ในโค้ด) ไม่ใช่สตริงจากเอกสาร — ไม่ถือว่าลอกผลลัพธ์ เพราะเทสต์ของ QA (`DECIDED_V6_*` / Exact String) ตรวจค่าคงที่เหล่านี้กับ game-rules §1.1 อยู่แล้ว → Q-QA-8 · prepareCount / ลำดับ / บันทึกหรือไม่ ทั้งหมดมาจาก V-11 / V-12 ไม่ได้ลอกจากโค้ด
+
+## ตาราง ข้อกำหนด → เทสต์ (รอบ 3)
+
+| ข้อกำหนด | เทสต์ | ผล |
+|---|---|---|
+| ลำดับเหตุการณ์บน emulator ตั้งแต่ต้นจนจบ: engine false → เข้า dashboard (ก้าว 100%, น้ำ 2 แก้ว) → ไม่มีเสียง / ไม่มีฟอง / storage ไม่มี `voice_water_low`, `voice_steps_success` → resumed (ยังไม่ลงเสียง) ลองใหม่ ยังเงียบ → engine true → resumed → ฟอง + เสียง water low แล้ว steps success ตามลำดับ ครั้งเดียว ไม่พูดซ้อน → storage บันทึกทั้ง 2 id → resumed ซ้ำ 2 ครั้ง / ออกแล้วเข้าใหม่ → ไม่พูดซ้ำ ไม่ prepare ซ้ำ | `DECIDED_R3_e2e_engine_false_then_resumed_speaks_water_low_then_steps_success_once` | ผ่าน |
+| เข้าใหม่ (ไม่ใช่ resumed): เงียบ → ออก → engine พร้อม → เข้าใหม่ พูดครั้งเดียว → เข้าอีกครั้งไม่พูด | `DECIDED_R3_reenter_dashboard_after_engine_ready_speaks_pending_once` | ผ่าน |
+| restart ระหว่างช่วงที่ไม่มีเสียง (SharedPrefs จริง) → เปิดใหม่ engine พร้อม → พูด water low → steps success · เปิดใหม่อีกครั้งวันเดียวกัน → ไม่พูด | `DECIDED_R3_restart_during_silent_period_then_engine_ready_speaks` | ผ่าน |
+| ข้อมูลเสีย: `voice_day_bands` อ่านไม่ได้ + engine false → ไม่แครช → restart engine พร้อม → พูดได้ | `DECIDED_R3_corrupt_day_bands_and_engine_false_then_ready_speaks_no_crash` | ผ่าน |
+| Master Voice ปิด → ยังบันทึกช่วง (Q-08) · เปิดเสียงทีหลัง + resumed / เข้าใหม่ → ไม่พูดย้อน | `DECIDED_R3_master_off_still_records_bands_Q08_no_backfill` | ผ่าน |
+| ค่าเกณฑ์: เงียบตอนน้ำ 2 แก้ว → เป็น 3 แก้ว (ขอบ ไม่มีบท) → engine พร้อม → พูดเฉพาะ steps success ไม่พูด water low ที่หมดเกณฑ์แล้ว | `DECIDED_R3_value_moves_to_no_line_band_while_silent_then_ready_speaks_current_band_only` | ผ่าน |
+| ค่าเปลี่ยนขณะอยู่ dashboard ไม่ใช่จุดลองใหม่ (V-12) · resumed ลองใหม่ | `DECIDED_R3_values_change_while_silent_on_dashboard_do_not_retry` | ผ่าน |
+| ข้ามวัน: เงียบ 23:59 → พร้อม 04:59 (รอบวันเดิม) พูด 1 ชุด → 05:00 รอบใหม่พูดอีก 1 ชุด → ไม่พูดซ้ำ · true แล้วไม่ prepare ซ้ำ | `DECIDED_R3_silent_yesterday_ready_after_0500_speaks_for_new_day_once` | ผ่าน |
+| ค่าเกณฑ์ก้าว 9,999 (99.99% encouraging) → 10,000 (100% success) ขณะเงียบ → พร้อม → พูด success บทเดียว | `DECIDED_R3_steps_threshold_9999_vs_10000_while_silent_then_ready` | ผ่าน |
+
+**mutation check:** คัดลอก `app/` (ไม่รวม build / โฟลเดอร์ desktop) ไป scratchpad แล้วใส่ `voice_controller.dart`, `voice_logic.dart`, `dashboard_screen.dart` ของ `e5c9a3a` (ตัดการเรียก `retryEngineIfUnavailable()` ในเทสต์ R3 เพื่อให้ compile ได้) → **ล้ม 8 / 9** · ผ่าน 1 = `master_off_still_records_bands_Q08_no_backfill` (พฤติกรรม Q-08 ไม่ได้เปลี่ยน ตามคาด) · ลบสำเนาทิ้งแล้ว ไม่แตะ `app/lib/` ของ worktree
+
+## สรุปตัวเลขรอบ 3 (จากการรันจริง)
+
+| รายการ | ค่า |
+|---|---|
+| `flutter analyze` (app/) | `No issues found! (ran in 1.9s)` |
+| `flutter test` ทั้งแอป (app/) | **1167 ทั้งหมด / 1167 ผ่าน / 0 ไม่ผ่าน** (`00:47 +1167: All tests passed!`) |
+| ที่มาของจำนวน | 1146 (รอบ 2) + Dev 12 (`DECIDED_V11/V12_*`) = 1158 + QA รอบ 3 9 = 1167 |
+| เทสต์ voice | 190 + 12 + 9 = 211 |
+| ข้อกำหนด V-11 / V-12 ที่ยังไม่มีเทสต์ | 0 |
+| bug ใหม่ | 0 |
+| ข้อจำกัด | engine เป็น fake — ยังต้องยืนยันบน emulator: ลบ `voice_day_bands` ที่บันทึกผิดไว้ก่อนแก้ (หรือรอ 05:00) → ลงเสียงไทย → กลับเข้าแอปขณะอยู่ dashboard → พูดครั้งเดียว |
+
+## คำถามถึงเอกสาร รอบ 3 (ไม่นับเป็น bug)
+
+| # | ประเด็น | ทางที่ QA เลือกชั่วคราว |
+|---|---|---|
+| Q-QA-7 | (รอบ 2) prepare() ไม่ลองใหม่ | **ปิดด้วย V-12** |
+| Q-QA-8 | Dev test ใช้ `VoiceRules.*Text` เป็นค่าคาดหวัง แทนสตริงจากเอกสาร | ยอมรับ (ค่าคงที่ถูกตรวจกับ game-rules ในเทสต์ QA แล้ว) · แนะนำให้ใช้สตริงจากเอกสารในรอบหน้า |
+| Q-QA-9 | เงียบตอนอยู่ในช่วงที่มีบท แล้วค่าเปลี่ยนไปช่วงที่ไม่มีบท (น้ำ 2 → 3 แก้ว) ก่อน engine พร้อม — V-12 "ประเมินช่วงแล้วพูดบทที่ค้าง" ไม่ได้ระบุว่าบทที่หมดเกณฑ์แล้วยังต้องพูดไหม | ถือว่าพูดตามช่วงปัจจุบันเท่านั้น (ไม่พูด water low ที่หมดเกณฑ์) ตาม V-4 |
+| Q-QA-10 | กลับจากหน้าตั้งค่า (ซ้อนบน dashboard) ไม่ใช่จุดลองใหม่ตาม V-12 — ถ้าผู้ใช้ไปลงเสียงผ่าน Settings ของระบบ แอปจะ resumed อยู่แล้ว จึงครอบกรณีหลัก | ยึดตาม V-12 ตามตัวอักษร |

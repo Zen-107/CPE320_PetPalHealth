@@ -89,7 +89,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       _controller.addListener(_evaluateVoice);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         voice.load().then((_) {
-          if (mounted) _evaluateVoice();
+          // DECIDED (owner 2026-11-12, V-12): เข้า dashboard → ลอง prepare() ใหม่ถ้าเคยได้ false
+          if (mounted) _evaluateVoice(retryEngine: true);
         });
       });
     }
@@ -119,9 +120,13 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   /// voice ui-spec §2.2 — เรียกซ้ำได้ (ช่วงเดิมไม่พูดซ้ำ จึงไม่เป็นไรที่ Timer alert notify ทุก 5 วินาที)
-  void _evaluateVoice() {
+  ///
+  /// [retryEngine] = true เฉพาะตอนเข้าหน้าและตอน resumed (V-12) — ไม่ลองใหม่ทุกครั้งที่ค่าเปลี่ยน
+  /// หรือ Timer alert notify
+  void _evaluateVoice({bool retryEngine = false}) {
     final voice = widget.voiceController;
     if (voice == null || !mounted || !_controller.isLoaded) return;
+    if (retryEngine) voice.retryEngineIfUnavailable();
     voice.evaluate(_controller.input);
   }
 
@@ -132,7 +137,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       case AppLifecycleState.resumed:
         _controller.refreshDay();
         // ASSUMPTION: voice ui-spec Q-13 — กลับมา → ประเมินใหม่ (ช่วงเดิมไม่พูดซ้ำ)
-        _evaluateVoice();
+        // DECIDED (owner 2026-11-12, V-12): resumed ขณะอยู่ dashboard → ลอง prepare() ใหม่ถ้าเคยได้ false
+        _evaluateVoice(retryEngine: true);
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:

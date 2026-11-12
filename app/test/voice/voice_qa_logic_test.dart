@@ -556,7 +556,12 @@ void main() {
       expect(e.spoken, isEmpty);
       expect(lines.whereType<VoiceLine>(), isEmpty, reason: 'ไม่มีฟอง (Q-11)');
       expect(c.queue, isEmpty);
-      expect(c.dayBands?.bands[VoiceTopic.water], idWaterLow);
+      // Dev รอบ 3: เดิมคาดว่าบันทึก idWaterLow — เปลี่ยนตาม DECIDED (owner 2026-11-12, V-11):
+      // engine ไม่พร้อม → ห้ามบันทึกช่วงที่มีบทพูดว่า "พูดแล้ว" (logs/20261112-1043_owner_voice.md)
+      expect(c.dayBands?.bands[VoiceTopic.water], isNull);
+      // QA รอบ 3 (V-11): steps 100% มีบท success → ต้องไม่บันทึกเช่นกัน · food ไม่มีบท → บันทึก NONE ได้
+      expect(c.dayBands?.bands[VoiceTopic.steps], isNull);
+      expect(c.dayBands?.bands[VoiceTopic.food], docNoneBand);
       c.dispose();
     });
 

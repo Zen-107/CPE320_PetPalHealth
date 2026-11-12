@@ -101,10 +101,15 @@ class VoiceLogic {
   /// DECIDED (owner 2026-11-12, V-4): แต่ละเรื่องพูดเฉพาะเมื่อค่า "เข้าช่วงใหม่" ที่ต่างจาก
   /// ช่วงล่าสุดของเรื่องนั้นในรอบวันเดียวกัน (ช่วงที่ไม่มีบทพูดก็นับเป็นช่วง)
   /// · รอบวัน 05:00 ของแอปเดิม (WaterLogic.logicalDay)
+  ///
+  /// [commitLineBands] = false (DECIDED owner 2026-11-12, V-11): engine ยังไม่พร้อม → ช่วงที่ "มีบท
+  /// พูด" และเป็นช่วงใหม่ **ไม่ถูกบันทึก** (คงค่าเดิมของวันไว้) เพื่อให้พูดได้เมื่อ engine พร้อม ·
+  /// ช่วงที่ไม่มีบทพูด (`NONE`) ยังบันทึกตามปกติ · `lines` ยังคืนบทที่เข้าช่วงใหม่ (ผู้เรียกไม่พูด)
   static VoiceEvaluation evaluate({
     required DashboardInput input,
     required VoiceDayBands? previous,
     required DateTime now,
+    bool commitLineBands = true,
   }) {
     final today = WaterLogic.logicalDay(now);
     // วันใหม่ (05:00) = เริ่มนับใหม่
@@ -117,8 +122,12 @@ class VoiceLogic {
       final line = lineFor(topic, input);
       final code = bandCode(line);
       if (prev[topic] != code) {
-        bands[topic] = code;
-        if (line != null) lines.add(line);
+        if (line == null) {
+          bands[topic] = code; // ช่วงไม่มีบทพูด: บันทึกช่วง ไม่พูด
+        } else {
+          lines.add(line);
+          if (commitLineBands) bands[topic] = code;
+        }
       }
     }
     return VoiceEvaluation(
