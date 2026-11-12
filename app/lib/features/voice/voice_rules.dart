@@ -61,6 +61,20 @@ class VoiceRules {
   // DECIDED (owner 2026-11-12, V-6): TTS ในเครื่องผ่าน flutter_tts ภาษาไทย
   static const String ttsLanguage = 'th-TH';
 
+  // DECIDED (owner 2026-11-12, V-6a / BUG-VOICE-1): Android เลือกเฉพาะ voice ไทยที่อยู่ในเครื่อง
+  // จาก `getVoices` ของ flutter_tts — ค่าด้านล่างคือรูปแบบ map ที่ plugin ส่งมา
+  // (FlutterTtsPlugin.readVoiceProperties: name / locale = toLanguageTag() /
+  // network_required "1"|"0" / features คั่นด้วย tab)
+  static const String ttsLanguageCode = 'th';
+  static const String ttsVoiceNameKey = 'name';
+  static const String ttsVoiceLocaleKey = 'locale';
+  static const String ttsVoiceNetworkRequiredKey = 'network_required';
+  static const String ttsVoiceNetworkNotRequired = '0';
+  static const String ttsVoiceFeaturesKey = 'features';
+
+  /// TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED — voice ที่ยังไม่ได้ดาวน์โหลดลงเครื่อง
+  static const String ttsVoiceFeatureNotInstalled = 'notInstalled';
+
   // DECIDED (owner 2026-11-12, V-6): pitch สูงแบบตัวการ์ตูน
   static const double ttsPitch = 1.5;
 

@@ -97,3 +97,77 @@
 | Q-QA-3 | V-6a "ห้ามต่อเน็ต": โค้ดไม่มี network และไม่เรียก `setEngine` แต่บน Android engine ของ Google อาจเลือกเสียงที่ต้องใช้เน็ตได้เอง (เสียงแบบ network) — `flutter test` ตรวจไม่ได้ | ยอมรับตามโค้ดตอนนี้ · ขอให้รอบ emulator ลองปิดเน็ตแล้วฟังว่าพูดได้ / ถ้าต้องการบังคับเสียง offline ให้ owner ตัดสิน (เช่นเลือก voice ที่ไม่ต้องใช้เน็ต) |
 | Q-QA-4 | EC-1 Mute / เสียงสื่อเป็น 0 — ตรวจใน unit/widget test ไม่ได้ | ตรวจแค่ว่าไหลตามปกติไม่แครช (Q-22) · ต้องตรวจบน emulator |
 | Q-QA-5 | ui-spec §6 ขอเช็ก overflow ที่ 360×640 textScaler 1.0/1.5 (S-1, dashboard ขณะพูด, S-3) — ไม่ใช่ AC จึงไม่ได้ทำรอบนี้ | ไม่ได้ทดสอบ — เสนอเพิ่มรอบถัดไปถ้าต้องการ |
+
+---
+
+# QA รอบ 2 — re-check BUG-VOICE-1 (2026-11-12)
+
+| รายการ | ค่า |
+|---|---|
+| บั๊ก | BUG-VOICE-1 (owner พบบน emulator): Android `prepare()` เช็กแค่ `isLanguageAvailable('th-TH')` ซึ่งคืน true ได้แม้มีแต่ server voice → อาจพูดผ่าน cloud ขัด V-6a |
+| ที่ Dev แก้ | `app/lib/features/voice/voice_flutter_tts_engine.dart` (Android: `isLanguageInstalled` → `getVoices` → `pickOfflineThaiVoice` → `setLanguage` → `setVoice` ต้องคืน 1) · `VoiceLogic.pickOfflineThaiVoice` · ค่าคงที่ใน `voice_rules.dart` (logs/20261112-1200_dev_voice_r2.md) |
+| ข้อตัดสินที่ใช้ | DECIDED (owner 2026-11-12, รอบ 2): เทสต์ `FlutterTtsVoiceEngine` ได้โดย mock `MethodChannel('flutter_tts')` + `debugDefaultTargetPlatformOverride` — ข้อยกเว้นของ ui-spec §2.4.5 · ชื่อเทสต์ `DECIDED_R2_*` |
+| ไฟล์ใหม่ | `app/test/voice/voice_qa_r2_engine_channel_test.dart` — 23 เทสต์ |
+| ไฟล์ที่ QA แก้ | `app/test/voice/voice_qa_static_test.dart` — `NO_FlutterTtsVoiceEngine_constructed_in_any_test` ยกเว้นไฟล์ R2 ไฟล์เดียว (ตามข้อตัดสินรอบ 2 ไม่ใช่เพราะเทสต์ผิด) |
+| ผล | **BUG-VOICE-1 ปิด** · บั๊กใหม่ **0** |
+
+ที่มาของค่าคาดหวัง: `th-TH` / pitch `1.5` / volume `0.80` จาก V-6 (`voice_qa_docs.dart`) · "ไม่มีเสียงไทยในเครื่อง / error → ข้ามเงียบ ไม่แครช" จาก V-6a · `awaitSpeakCompletion(true)` จาก ui-spec §2.4.5 ("Future จบเมื่อพูดเสร็จ") · ชื่อ method และรูปแบบ map (`network_required "1"/"0"`, `setVoice` คืน 1/0) จาก API ของ flutter_tts 4.2.5 (`lib/flutter_tts.dart`, `FlutterTtsPlugin.kt`) ซึ่ง QA เปิดอ่านจาก pub cache เอง ไม่ได้ลอกจากโค้ดแอป
+
+## ตาราง ข้อกำหนด → เทสต์ (รอบ 2)
+
+| ข้อกำหนด | เทสต์ | ผล |
+|---|---|---|
+| Android: `isLanguageInstalled` false → false, ไม่เรียก setVoice / speak | `DECIDED_R2_android_not_installed_returns_false_no_setVoice_no_speak` | ผ่าน |
+| อาการเดิมของบั๊ก: Available true แต่ Installed false → ไม่พร้อม ไม่ตั้ง pitch / await | `DECIDED_R2_android_isLanguageAvailable_true_alone_is_not_enough` | ผ่าน |
+| Installed แต่ getVoices มีแต่ th-TH `network_required "1"` → false | `DECIDED_R2_android_installed_but_only_network_voices_returns_false` | ผ่าน |
+| มี th-TH `"0"` → ลำดับ isLanguageInstalled < getVoices < setLanguage(th-TH) < setVoice(voice นั้น) · setPitch 1.5 · setVolume 0.80 · awaitSpeakCompletion(true) → true · ไม่ setLanguage ซ้ำหลัง setVoice · ไม่ clearVoice · ไม่ speak ตอน prepare | `DECIDED_R2_android_offline_thai_voice_full_sequence_returns_true` | ผ่าน |
+| server voice อยู่ก่อนในรายการ → ยังเลือกตัว local | `DECIDED_R2_android_network_voice_listed_first_still_picks_local` | ผ่าน |
+| `setVoice` คืน 0 → false | `DECIDED_R2_android_setVoice_returns_0_returns_false` | ผ่าน |
+| `setVoice` คืน null → false | `DECIDED_R2_android_setVoice_returns_null_returns_false` | ผ่าน |
+| ค่าเกณฑ์: `isLanguageInstalled` ต้องเป็น `true` เท่านั้น (null / 1 / "true" → false) | `DECIDED_R2_android_isLanguageInstalled_non_bool_returns_false` | ผ่าน |
+| ข้อมูลว่าง / เสีย: getVoices `[]` / null / `"corrupt"` → false | `DECIDED_R2_android_empty_or_missing_voice_list_returns_false` | ผ่าน |
+| voice ไทย `"0"` แต่ features มี `notInstalled` → false | `DECIDED_R2_android_not_downloaded_thai_voice_returns_false` | ผ่าน |
+| method throw (PlatformException) → false ไม่ throw — 7 method | `DECIDED_R2_android_{isLanguageInstalled,getVoices,setLanguage,setVoice,setPitch,setVolume,awaitSpeakCompletion}_throws_returns_false_no_throw` (7) | ผ่าน 7/7 |
+| ไม่มี plugin (MissingPluginException) → false | `DECIDED_R2_android_no_plugin_handler_returns_false_no_throw` | ผ่าน |
+| หลัง prepare: speak ส่ง Exact String · ไม่มี setLanguage / clearVoice ระหว่าง setVoice กับ speak | `DECIDED_R2_android_speak_sends_exact_string_after_prepare` | ผ่าน |
+| iOS ใช้ `isLanguageAvailable` (ไม่เรียก isLanguageInstalled) → setLanguage th-TH / pitch / volume / await → true | `DECIDED_R2_ios_uses_isLanguageAvailable_true_returns_true` | ผ่าน |
+| iOS Available false → false ไม่ตั้งค่า | `DECIDED_R2_ios_isLanguageAvailable_false_returns_false` | ผ่าน |
+| iOS throw → false | `DECIDED_R2_ios_throw_returns_false_no_throw` | ผ่าน |
+| `isSupportedPlatform` = Android / iOS เท่านั้น (ui-spec §2.4 ไฟล์ใหม่) | `DECIDED_R2_isSupportedPlatform_android_ios_only` | ผ่าน |
+
+**ตรวจว่าเทสต์จับบั๊กได้จริง (mutation check):** เอา engine ก่อนแก้จาก commit `4f0cdfe` ไปไว้ใน `test/zz_mut/` ชั่วคราว (ไม่แตะ `app/lib/`) แล้วรันเทสต์ชุด R2 → **ล้ม 14 / 23** (เทสต์ Android ทั้งหมดที่เกี่ยวกับลำดับ / voice · iOS 3 + platform gate + throw ของ setLanguage/setPitch/setVolume/await + no plugin ผ่านเพราะพฤติกรรมไม่เปลี่ยน) → ลบโฟลเดอร์ทิ้งแล้ว
+
+## ตรวจเทสต์ `DECIDED_V6a_*` ของ Dev (8 ข้อ ใน `voice_offline_voice_pick_test.dart`)
+
+ค่าคาดหวังเป็น map / null ที่เขียนตรง ๆ ไม่ได้อ่านจาก `VoiceRules` หรือเรียกโค้ดมาคำนวณ → ไม่ได้ลอกโค้ด
+
+| เทสต์ | ที่มาของค่าคาดหวัง | สรุป |
+|---|---|---|
+| `picks_only_thai_offline_voice` | V-6a (ในเครื่องเท่านั้น) | ถูก |
+| `only_network_thai_voices_returns_null` | V-6a | ถูก |
+| `no_thai_voice_returns_null` | V-6a ("ไม่มีเสียงไทย → ข้าม") + ข้อมูลว่าง | ถูก |
+| `not_installed_voice_is_skipped` | V-6a + ความหมาย `notInstalled` ของ Android (ยังไม่อยู่ในเครื่อง) | ถูก |
+| `missing_or_unknown_network_flag_is_not_picked` | ASSUMPTION 1 ของ Dev (ไม่ชัวร์ = ถือว่าใช้เน็ต) — สอดคล้องกับ V-6a แต่ไม่ได้เขียนในข้อตัดสิน | ยอมรับ · ดู Q-QA-6 |
+| `prefers_exact_th_TH_over_other_thai_locale` | ASSUMPTION 3 ของ Dev | ยอมรับ · ดู Q-QA-6 |
+| `locale_prefix_th_only_not_lookalike` | ASSUMPTION 3 ของ Dev | ยอมรับ · ดู Q-QA-6 |
+| `malformed_input_returns_null_without_throwing` | V-6a "ไม่แครช" + ASSUMPTION 6 | ถูก |
+
+## สรุปตัวเลขรอบ 2 (จากการรันจริง)
+
+| รายการ | ค่า |
+|---|---|
+| `flutter analyze` (app/) | `No issues found! (ran in 3.7s)` |
+| `flutter test` ทั้งแอป (app/) | **1146 ทั้งหมด / 1146 ผ่าน / 0 ไม่ผ่าน** (`00:50 +1146: All tests passed!`) |
+| ที่มาของจำนวน | 1115 (รอบ 1) + Dev 8 (`DECIDED_V6a_*`) = 1123 + QA รอบ 2 23 = 1146 |
+| เทสต์ voice | 159 + 8 + 23 = 190 |
+| ข้อกำหนดของ BUG-VOICE-1 ที่ยังไม่มีเทสต์ | 0 |
+| bug ใหม่ | 0 |
+| ข้อจำกัด | การทดสอบนี้จำลอง platform channel — ยังต้องยืนยันบน emulator 2 กรณี: มีเสียงไทยออฟไลน์ (ควรพูด) / มีแต่ server voice หรือปิดเน็ต (ควรเงียบ ไม่มีฟอง) |
+
+## คำถามถึงเอกสาร รอบ 2 (ไม่นับเป็น bug)
+
+| # | ประเด็น | ทางที่ QA เลือกชั่วคราว |
+|---|---|---|
+| Q-QA-3 | (รอบ 1) เสียง network บน Android | **ปิดด้วย BUG-VOICE-1** ในระดับโค้ด · ยังต้องยืนยันบน emulator |
+| Q-QA-6 | เทสต์ Dev 3 ข้อ (`missing_or_unknown_network_flag`, `prefers_exact_th_TH`, `locale_prefix_th_only`) ใช้ชื่อ `DECIDED_` แต่ค่ามาจาก ASSUMPTION ของ Dev ไม่ได้อยู่ในข้อตัดสิน owner | ยอมรับค่าตามนั้น (ปลอดภัยต่อ V-6a) · ขอ owner ยืนยันตอนรีวิว PR หรือเปลี่ยนชื่อเป็น `ASSUMPTION_` |
+| Q-QA-7 | prepare() คืน false ครั้งเดียวแล้ว — ถ้าผู้ใช้ไปดาวน์โหลดเสียงไทยภายหลังขณะแอปเปิดอยู่ จะพูดเมื่อไหร่ (เอกสารไม่กล่าวถึง) | ไม่ทดสอบ · ถือว่าเริ่มแอปใหม่แล้วพูดได้ |

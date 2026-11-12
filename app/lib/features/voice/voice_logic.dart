@@ -52,6 +52,52 @@ class VoiceLogic {
   static String bandCode(VoiceLine? line) =>
       line?.id ?? VoiceRules.noLineBandCode;
 
+  /// DECIDED (owner 2026-11-12, V-6a / BUG-VOICE-1): เลือก voice ไทยที่ "ไม่ต้องใช้เน็ต" จากผล
+  /// `FlutterTts.getVoices` (Android) — คืน `{'name', 'locale'}` สำหรับ `setVoice` หรือ null ถ้าไม่มี
+  ///
+  /// - locale ต้องเป็นภาษาไทย (`th` หรือ `th-…` / `th_…`) — ไม่สนตัวพิมพ์
+  /// - `network_required` ต้องเป็น `"0"` เท่านั้น (ไม่มีคีย์ / ค่าอื่น = ไม่เลือก — ปลอดภัยไว้ก่อน)
+  /// - ข้าม voice ที่ features มี `notInstalled` (ยังไม่ดาวน์โหลด)
+  /// - ถ้ามีหลายตัว เลือกตัวที่ locale ตรง [VoiceRules.ttsLanguage] (`th-TH`) ก่อน ไม่เช่นนั้นตัวแรก
+  // ASSUMPTION: BUG-VOICE-1 — รายการที่ไม่ใช่ List / สมาชิกที่ไม่ใช่ Map ถูกข้าม (ไม่ throw)
+  static Map<String, String>? pickOfflineThaiVoice(Object? voices) {
+    if (voices is! List) return null;
+    Map<String, String>? fallback;
+    for (final v in voices) {
+      if (v is! Map) continue;
+      final name = v[VoiceRules.ttsVoiceNameKey];
+      final locale = v[VoiceRules.ttsVoiceLocaleKey];
+      if (name is! String || name.isEmpty || locale is! String) continue;
+      if (!_isThaiLocale(locale)) continue;
+      if (v[VoiceRules.ttsVoiceNetworkRequiredKey] !=
+          VoiceRules.ttsVoiceNetworkNotRequired) {
+        continue;
+      }
+      final features = v[VoiceRules.ttsVoiceFeaturesKey];
+      if (features is String &&
+          features.split('\t').contains(VoiceRules.ttsVoiceFeatureNotInstalled)) {
+        continue;
+      }
+      final picked = {
+        VoiceRules.ttsVoiceNameKey: name,
+        VoiceRules.ttsVoiceLocaleKey: locale,
+      };
+      if (_sameLocale(locale, VoiceRules.ttsLanguage)) return picked;
+      fallback ??= picked;
+    }
+    return fallback;
+  }
+
+  static bool _isThaiLocale(String locale) {
+    final l = locale.toLowerCase();
+    final code = VoiceRules.ttsLanguageCode;
+    return l == code || l.startsWith('$code-') || l.startsWith('${code}_');
+  }
+
+  static bool _sameLocale(String a, String b) =>
+      a.toLowerCase().replaceAll('_', '-') ==
+      b.toLowerCase().replaceAll('_', '-');
+
   /// DECIDED (owner 2026-11-12, V-4): แต่ละเรื่องพูดเฉพาะเมื่อค่า "เข้าช่วงใหม่" ที่ต่างจาก
   /// ช่วงล่าสุดของเรื่องนั้นในรอบวันเดียวกัน (ช่วงที่ไม่มีบทพูดก็นับเป็นช่วง)
   /// · รอบวัน 05:00 ของแอปเดิม (WaterLogic.logicalDay)

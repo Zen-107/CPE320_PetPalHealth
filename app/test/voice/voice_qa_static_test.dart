@@ -202,8 +202,12 @@ void main() {
       // สร้าง pattern แบบต่อสตริง เพื่อไม่ให้ไฟล์นี้จับตัวเอง
       final ctor = RegExp('FlutterTts' 'VoiceEngine\\s*\\(');
       final rawTts = RegExp('FlutterTts' '\\s*\\(\\)');
+      // DECIDED (owner 2026-11-12, รอบ 2): ยกเว้นไฟล์เดียวที่ mock MethodChannel('flutter_tts')
+      // (ไม่มี plugin จริงทำงาน) — ไฟล์อื่นยังห้ามเหมือนเดิม
+      const r2Allowed = 'voice_qa_r2_engine_channel_test.dart';
       final hits = <String>[];
       for (final f in dartFilesUnder('test')) {
+        if (f.uri.pathSegments.last == r2Allowed) continue;
         final src = codeOnly(f.readAsStringSync());
         if (ctor.hasMatch(src) || rawTts.hasMatch(src)) hits.add(f.path);
       }
