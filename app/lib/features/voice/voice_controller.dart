@@ -220,6 +220,15 @@ class VoiceController extends ChangeNotifier {
     }));
   }
 
+  /// เตรียม engine ล่วงหน้าตอนเปิดแอป (ไม่รอผล ไม่บล็อก UI) — ตัดเวลา prepare() ออกจากจังหวะ
+  /// เข้า dashboard · ปิดเสียงอยู่ / ยังไม่ตอบ S-1 = ไม่ทำอะไร (ไม่แตะ TTS ถ้าผู้ใช้ไม่เปิดเสียง)
+  /// · ได้ false → dashboard ลองใหม่ตาม V-12 ตามเดิม
+  Future<void> warmUp() async {
+    await load();
+    if (_disposed || !_master) return;
+    await _ensureReady();
+  }
+
   /// DECIDED (owner 2026-11-12, V-12): prepare() ที่ได้ false ให้ลองใหม่ — dashboard เรียกตอนเข้าหน้า
   /// และตอนแอป resumed (ก่อน [evaluate]) · ได้ true แล้วไม่เรียกซ้ำ · กำลัง prepare อยู่ = ไม่ทำอะไร
   /// (รอผลรอบเดิม ไม่เรียกซ้อน)
@@ -273,10 +282,18 @@ class VoiceController extends ChangeNotifier {
 
   Future<bool> _prepare() async {
     try {
-      return await engine.prepare();
+      if (!await engine.prepare()) return false;
     } catch (_) {
       return false;
     }
+    // อุ่นเครื่องแบบเงียบ: โหลดโมเดลเสียงให้เสร็จก่อนบทแรก (ไม่งั้นบทแรกเริ่มช้าหลายวินาที)
+    // · ล้มเหลว = ข้าม (engine ยังพร้อมพูด)
+    if (engine case final VoiceEnginePrimer primer) {
+      try {
+        await primer.prime();
+      } catch (_) {}
+    }
+    return true;
   }
 
   Future<void> _runQueue() async {
@@ -297,8 +314,25 @@ class VoiceController extends ChangeNotifier {
           break;
         }
         final line = _queue.removeAt(0);
-        _currentLine = line;
-        _notify();
+        // ฟองขึ้นพร้อมเสียง: engine ที่บอกจังหวะเริ่มเสียงได้ → รอสัญญาณก่อนแสดงฟอง
+        // (เครื่องสังเคราะห์เสียงใช้เวลาเตรียมหลายวินาที) · engine อื่น → แสดงทันทีแบบเดิม
+        var speaking = true;
+        void showBubble() {
+          if (!speaking || _disposed || gen != _generation) return;
+          if (_currentLine == line) return;
+          _currentLine = line;
+          _notify();
+        }
+
+        final startAware = switch (engine) {
+          final VoiceSpeakStartAware e => e,
+          _ => null,
+        };
+        if (startAware == null) {
+          showBubble();
+        } else {
+          startAware.onSpeakStart = showBubble;
+        }
         try {
           await engine.speak(line.text).timeout(VoiceRules.speakTimeout);
         } on TimeoutException {
@@ -306,6 +340,9 @@ class VoiceController extends ChangeNotifier {
           await _safeStop();
         } catch (_) {
           // EC-3 (V-6a): TTS error → ข้ามบทนี้เงียบ ๆ
+        } finally {
+          speaking = false;
+          startAware?.onSpeakStart = null;
         }
         if (gen == _generation && _currentLine == line) {
           _currentLine = null;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'features/food/food_controller.dart';
@@ -73,7 +75,6 @@ Future<void> main() async {
   signupController.onSignedOut = notificationController.onSignedOut;
   // voice: DECIDED (owner 2026-11-12, V-6, V-7) TTS ในเครื่องผ่าน flutter_tts (ไม่มี network)
   // · แพลตฟอร์มอื่น (เช่น windows) = Noop ไม่มีเสียง ไม่มีฟอง (ASSUMPTION: voice ui-spec Q-31)
-  // · ไม่เรียก prepare() ที่นี่ (เรียกครั้งแรกเมื่อจะพูด — ไม่ถ่วงเวลาเปิดแอป)
   final VoiceTtsEngine voiceEngine = FlutterTtsVoiceEngine.isSupportedPlatform
       ? FlutterTtsVoiceEngine()
       : const NoopVoiceTtsEngine();
@@ -81,6 +82,8 @@ Future<void> main() async {
     repository: SharedPrefsVoiceRepository(),
     engine: voiceEngine,
   );
+  // เตรียม TTS ล่วงหน้าแบบไม่รอผล (ไม่ถ่วงเวลาเปิดแอป) — ลดดีเลย์ก่อนน้องพูดบทแรก
+  unawaited(voiceController.warmUp());
   runApp(
     PetPalApp(
       waterController: waterController,
