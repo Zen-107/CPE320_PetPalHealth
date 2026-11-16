@@ -12,10 +12,18 @@ import 'voice_logic.dart';
 import 'voice_rules.dart';
 import 'voice_tts_engine.dart';
 
-class FlutterTtsVoiceEngine implements VoiceTtsEngine {
-  FlutterTtsVoiceEngine([FlutterTts? tts]) : _tts = tts ?? FlutterTts();
+class FlutterTtsVoiceEngine
+    implements VoiceTtsEngine, VoiceSpeakStartAware, VoiceEnginePrimer {
+  FlutterTtsVoiceEngine([FlutterTts? tts]) : _tts = tts ?? FlutterTts() {
+    // plugin แจ้ง "speak.onStart" เมื่อเสียงเริ่มเล่นจริง (หลังสังเคราะห์เสร็จ)
+    _tts.setStartHandler(() => _onSpeakStart?.call());
+  }
 
   final FlutterTts _tts;
+  void Function()? _onSpeakStart;
+
+  @override
+  set onSpeakStart(void Function()? callback) => _onSpeakStart = callback;
 
   /// แพลตฟอร์มที่ตัวนี้รองรับ — อื่น ๆ ใช้ NoopVoiceTtsEngine (ASSUMPTION: voice ui-spec Q-31)
   static bool get isSupportedPlatform =>
@@ -66,6 +74,24 @@ class FlutterTtsVoiceEngine implements VoiceTtsEngine {
     // plugin คืน 1 = ตั้งสำเร็จ, 0 = ไม่พบ voice
     // ASSUMPTION: BUG-VOICE-1 — ค่าอื่นที่ไม่ใช่ 1 ถือว่าไม่สำเร็จ (ปลอดภัยไว้ก่อน)
     return set == 1;
+  }
+
+  /// โหลดโมเดลเสียงล่วงหน้า: พูดคำสั้น ๆ ที่ volume 0 แล้วคืน volume เดิม
+  /// (volume ถูกส่งไปกับแต่ละ speak — บทจริงที่ตามมาใช้ค่าปกติ)
+  @override
+  Future<void> prime() async {
+    try {
+      await _tts.setVolume(0);
+      await _tts.speak(VoiceRules.primeText).timeout(VoiceRules.primeTimeout);
+    } catch (_) {
+      try {
+        await _tts.stop();
+      } catch (_) {}
+    } finally {
+      try {
+        await _tts.setVolume(VoiceRules.defaultAudioVolumeGain);
+      } catch (_) {}
+    }
   }
 
   // ASSUMPTION: voice ui-spec Q-21 — ไม่เรียก setSpeechRate (ใช้ค่าเครื่อง)

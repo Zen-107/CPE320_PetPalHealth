@@ -82,6 +82,12 @@ class VoiceRules {
   // ASSUMPTION: voice ui-spec Q-12 — 20 วินาที แล้ว stop() + บทถัดไป
   static const Duration speakTimeout = Duration(seconds: 20);
 
+  /// คำที่ใช้อุ่นเครื่อง TTS แบบเงียบ (volume 0) ตอนเตรียม engine — ผู้ใช้ไม่ได้ยิน
+  static const String primeText = 'อ๊บ';
+
+  /// เวลาสูงสุดของการอุ่นเครื่อง — เกินนี้ stop() แล้วถือว่าพร้อม (บทจริงยังพูดได้ตามปกติ)
+  static const Duration primeTimeout = Duration(seconds: 10);
+
   /// รหัสช่วงที่ไม่มีบทพูด (ui-spec §2.4.3)
   static const String noLineBandCode = 'NONE';
 
